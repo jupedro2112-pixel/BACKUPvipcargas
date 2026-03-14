@@ -92,7 +92,11 @@
                 <section id="chatsSection" class="content-section">
                     <div class="section-header">
                         <h2>💬 Conversaciones</h2>
-                        <button id="refreshChats" class="btn btn-secondary">🔄 Actualizar</button>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button id="refreshChats" class="btn btn-secondary">🔄 Actualizar</button>
+                            <button id="deleteAllFilesBtn" class="btn btn-danger" aria-label="Borrar todos los archivos adjuntos">🗑️ Borrar archivos adjuntos</button>
+                            <button id="deleteAllChatsBtn" class="btn btn-danger" aria-label="Borrar todos los chats">🗑️ Borrar todos los chats</button>
+                        </div>
                     </div>
                     
                     <!-- Buscador de chats -->

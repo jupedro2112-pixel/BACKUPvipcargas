@@ -627,6 +627,28 @@ app.get('/api/messages/:userId', authMiddleware, (req, res) => {
   }
 });
 
+// Borrar todos los mensajes (solo admin)
+app.delete('/api/messages/all', authMiddleware, adminMiddleware, (req, res) => {
+  try {
+    saveMessages([]);
+    res.json({ message: 'Todos los chats han sido eliminados exitosamente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// Borrar todos los archivos adjuntos (imágenes) de los mensajes (solo admin)
+app.delete('/api/messages/files', authMiddleware, adminMiddleware, (req, res) => {
+  try {
+    const messages = loadMessages();
+    const filtered = messages.filter(msg => msg.type !== 'image');
+    saveMessages(filtered);
+    res.json({ message: 'Todos los archivos adjuntos han sido eliminados exitosamente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 // Obtener todas las conversaciones (solo admin)
 app.get('/api/conversations', authMiddleware, adminMiddleware, (req, res) => {
   try {

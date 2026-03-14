@@ -53,6 +53,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (refreshChats) {
         refreshChats.addEventListener('click', loadConversations);
     }
+
+    const deleteAllChatsBtn = document.getElementById('deleteAllChatsBtn');
+    if (deleteAllChatsBtn) {
+        deleteAllChatsBtn.addEventListener('click', deleteAllChats);
+    }
+
+    const deleteAllFilesBtn = document.getElementById('deleteAllFilesBtn');
+    if (deleteAllFilesBtn) {
+        deleteAllFilesBtn.addEventListener('click', deleteAllFiles);
+    }
     
     const sendMessageBtn = document.getElementById('sendMessageBtn');
     if (sendMessageBtn) {
@@ -1011,4 +1021,54 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ========================================
+// ELIMINAR CHATS Y ARCHIVOS
+// ========================================
+
+async function deleteAllChats() {
+    if (!confirm('¿Estás seguro de que deseas borrar TODOS los chats? Esta acción no se puede deshacer.')) return;
+    try {
+        const response = await fetch('/api/messages/all', {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + authToken }
+        });
+        const data = await response.json();
+        if (response.ok) {
+            showToast(data.message, 'success');
+            selectedUserId = null;
+            loadConversations();
+            const chatContent = document.getElementById('chatContent');
+            const chatPlaceholder = document.getElementById('chatPlaceholder');
+            if (chatContent) chatContent.classList.add('hidden');
+            if (chatPlaceholder) chatPlaceholder.classList.remove('hidden');
+        } else {
+            showToast(data.error || 'Error al borrar los chats', 'error');
+        }
+    } catch (error) {
+        showToast('Error al borrar los chats', 'error');
+    }
+}
+
+async function deleteAllFiles() {
+    if (!confirm('¿Estás seguro de que deseas borrar todos los archivos adjuntos (imágenes)? Esta acción no se puede deshacer.')) return;
+    try {
+        const response = await fetch('/api/messages/files', {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + authToken }
+        });
+        const data = await response.json();
+        if (response.ok) {
+            showToast(data.message, 'success');
+            loadConversations();
+            if (selectedUserId) {
+                loadMessages(selectedUserId);
+            }
+        } else {
+            showToast(data.error || 'Error al borrar los archivos', 'error');
+        }
+    } catch (error) {
+        showToast('Error al borrar los archivos', 'error');
+    }
 }
