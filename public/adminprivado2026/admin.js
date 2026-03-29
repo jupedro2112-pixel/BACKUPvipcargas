@@ -772,7 +772,7 @@ async function loadConversations(forceRefresh = false) {
 async function prefetchMessages(convs) {
     for (const conv of convs) {
         if (!messageCache.has(conv.userId)) {
-            fetch(`${API_URL}/api/messages/${conv.userId}?limit=20`, {
+            fetch(`${API_URL}/api/messages/${conv.userId}?limit=15`, {
                 headers: { 'Authorization': `Bearer ${currentToken}` }
             })
             .then(r => r.json())
@@ -958,8 +958,8 @@ async function loadMessages(userId) {
             elements.chatMessages.innerHTML = '<div class="empty-state"><span class="icon icon-sync" style="animation: spin 1s linear infinite;"></span><p>Cargando mensajes...</p></div>';
         }
         
-        // Fix #1: Cargar más historial (200 mensajes)
-        const response = await fetch(`${API_URL}/api/messages/${userId}?limit=200`, {
+        // Cargar últimos 15 mensajes previos (límite del panel de admin)
+        const response = await fetch(`${API_URL}/api/messages/${userId}?limit=15`, {
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         
@@ -3142,7 +3142,7 @@ async function prefetchFrequentConversations() {
     
     for (const conv of frequentUsers) {
         if (!messageCache.has(conv.userId)) {
-            fetch(`${API_URL}/api/messages/${conv.userId}?limit=20`, {
+            fetch(`${API_URL}/api/messages/${conv.userId}?limit=15`, {
                 headers: { 'Authorization': `Bearer ${currentToken}` }
             })
             .then(r => r.json())

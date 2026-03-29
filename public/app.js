@@ -1068,6 +1068,8 @@ function initSocket() {
                 socket.emit('join_user_room', { userId: currentUser.userId });
                 console.log('📢 Unido a sala personal:', currentUser.userId);
             }
+            // Cargar historial de mensajes desde MongoDB al autenticar el socket
+            loadMessages(true);
         } else {
             console.error('❌ Error autenticando socket:', data.error);
         }
