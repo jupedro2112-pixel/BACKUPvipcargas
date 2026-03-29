@@ -97,6 +97,11 @@ function sanitizeInput(input) {
     .substring(0, 1000);
 }
 
+// Escapar caracteres especiales de regex para evitar ReDoS/inyección
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function validateUsername(username) {
   if (!username || typeof username !== 'string') return false;
   const sanitized = username.trim();
@@ -376,7 +381,7 @@ app.get('/api/auth/check-username', async (req, res) => {
     
     // Buscar case-insensitive
     const localExists = await User.findOne({ 
-      username: { $regex: new RegExp('^' + username + '$', 'i') } 
+      username: { $regex: new RegExp('^' + escapeRegex(username) + '$', 'i') } 
     });
     
     if (localExists) {
@@ -497,7 +502,7 @@ app.post('/api/auth/register', async (req, res) => {
     
     // Buscar case-insensitive
     const existingUser = await User.findOne({ 
-      username: { $regex: new RegExp('^' + username + '$', 'i') } 
+      username: { $regex: new RegExp('^' + escapeRegex(username) + '$', 'i') } 
     });
     
     if (existingUser) {
@@ -555,11 +560,11 @@ app.post('/api/auth/register', async (req, res) => {
       lastMessageAt: new Date()
     });
     
-    // Generar token sin expiración
+    // Generar token con expiración de 90 días
     const token = jwt.sign(
       { userId: newUser.id, username: newUser.username, role: newUser.role },
-      JWT_SECRET
-      // Sin expiresIn - el token no expira nunca
+      JWT_SECRET,
+      { expiresIn: '90d' }
     );
     
     res.status(201).json({
@@ -596,7 +601,7 @@ app.post('/api/auth/login', async (req, res) => {
     
     // Buscar usuario case-insensitive (para soportar usernames con mayúsculas/minúsculas)
     let user = await User.findOne({ 
-      username: { $regex: new RegExp('^' + username + '$', 'i') } 
+      username: { $regex: new RegExp('^' + escapeRegex(username) + '$', 'i') } 
     });
     
     // Si no existe localmente, verificar en JUGAYGANA
@@ -709,11 +714,11 @@ app.post('/api/auth/login', async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
     
-    // Token sin expiración para persistencia de sesión
+    // Token con expiración de 90 días para persistencia de sesión
     const token = jwt.sign(
       { userId: userId, username: userObj.username, role: userObj.role, tokenVersion: userObj.tokenVersion || 0 },
-      JWT_SECRET
-      // Sin expiresIn - el token no expira nunca
+      JWT_SECRET,
+      { expiresIn: '90d' }
     );
     
     res.json({
@@ -1081,7 +1086,7 @@ app.post('/api/users', authMiddleware, adminMiddleware, async (req, res) => {
     
     // Buscar case-insensitive
     const existingUser = await User.findOne({ 
-      username: { $regex: new RegExp('^' + username + '$', 'i') } 
+      username: { $regex: new RegExp('^' + escapeRegex(username) + '$', 'i') } 
     });
     if (existingUser) {
       return res.status(400).json({ error: 'El usuario ya existe' });
@@ -3775,6 +3780,39 @@ app.post('/api/admin/send-to-payments', authMiddleware, adminMiddleware, async (
   }
 });
 
+// Enviar chat de vuelta a Abiertos (desde Pagos o Cerrados)
+app.post('/api/admin/send-to-open', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Usuario no especificado' });
+    }
+
+    // Al mover a Abiertos: resetear categoría a 'cargas' (pool general)
+    // y liberar asignación para que cualquier agente pueda tomar el chat
+    await ChatStatus.findOneAndUpdate(
+      { userId },
+      {
+        status: 'open',
+        category: 'cargas',
+        assignedTo: null,
+        closedAt: null,
+        closedBy: null,
+        updatedAt: new Date()
+      },
+      { upsert: true }
+    );
+
+    notifyAdmins('chat_moved', { userId, to: 'open', by: req.user.username });
+
+    res.json({ success: true, message: 'Chat enviado a abiertos' });
+  } catch (error) {
+    console.error('Error enviando a abiertos:', error);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
 // Cerrar chat - SOLO INTERNO (no notifica al cliente)
 app.post('/api/admin/close-chat', authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -4007,7 +4045,7 @@ app.post('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) =
     }
     
     // Verificar si el usuario ya existe
-    const existingUser = await User.findOne({ username: { $regex: new RegExp('^' + username + '$', 'i') } });
+    const existingUser = await User.findOne({ username: { $regex: new RegExp('^' + escapeRegex(username) + '$', 'i') } });
     if (existingUser) {
       return res.status(400).json({ error: 'El usuario ya existe' });
     }
@@ -4116,7 +4154,7 @@ app.delete('/api/admin/commands/:name', authMiddleware, adminMiddleware, async (
 // BASE DE DATOS - PROTEGIDA CON CONTRASEÑA
 // ============================================
 
-const DB_PASSWORD = 'P4pelito2026';
+const DB_PASSWORD = process.env.DB_PASSWORD || 'P4pelito2026';
 
 // Middleware para verificar contraseña de base de datos
 function dbPasswordMiddleware(req, res, next) {
