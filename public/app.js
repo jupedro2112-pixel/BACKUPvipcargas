@@ -1416,6 +1416,7 @@ function addMessageToChat(message) {
 
     // Scroll automático al agregar mensaje
     requestAnimationFrame(() => scrollToBottom());
+}
 
 async function sendMessage() {
     const input = document.getElementById('messageInput');
