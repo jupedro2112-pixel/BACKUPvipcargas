@@ -196,9 +196,9 @@
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            gap: 8px;
-            flex-wrap: nowrap;
-            overflow: hidden;
+            gap: 6px;
+            flex-wrap: wrap;
+            overflow: visible;
         }
         
         @keyframes golden-shimmer {
@@ -1264,9 +1264,17 @@
             }
             
             .header {
-                padding: 8px 10px;
-                min-height: 65px;
-                flex-wrap: nowrap;
+                padding: 8px;
+                min-height: auto;
+                grid-template-columns: auto 1fr;
+                grid-template-rows: auto auto;
+                row-gap: 4px;
+            }
+            
+            .header-right {
+                grid-column: 1 / -1;
+                justify-content: flex-start;
+                gap: 4px;
             }
             
             .fire-section {
@@ -1344,7 +1352,7 @@
             }
             
             .promo-banner {
-                top: 65px;
+                top: 94px;
                 height: 35px;
             }
             
@@ -1354,7 +1362,7 @@
             }
             
             .chat-section {
-                margin-top: 105px;
+                margin-top: 134px;
                 margin-bottom: 70px;
             }
             
@@ -1407,8 +1415,18 @@
         /* Responsive - Móviles pequeños */
         @media (max-width: 480px) {
             .header {
-                min-height: 60px;
-                padding: 6px 8px;
+                min-height: auto;
+                padding: 6px;
+                grid-template-columns: auto 1fr;
+                grid-template-rows: auto auto;
+                row-gap: 4px;
+            }
+            
+            .header-right {
+                grid-column: 1 / -1;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+                gap: 3px;
             }
             
             .fire-btn {
@@ -1423,7 +1441,7 @@
             
             .refund-btn {
                 padding: 3px 4px;
-                min-width: 45px;
+                min-width: 42px;
                 font-size: 6px;
             }
             
@@ -1432,7 +1450,8 @@
             }
             
             .platform-section {
-                display: none; /* Ocultar en pantallas muy pequeñas */
+                font-size: 7px;
+                padding: 2px 4px;
             }
             
             .support-btn {
@@ -1446,11 +1465,30 @@
             }
             
             .user-name {
-                display: none; /* Ocultar nombre en pantallas muy pequeñas */
+                font-size: 8px;
+                padding: 2px 5px;
+                max-width: 80px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .info-btn {
+                font-size: 10px;
+                padding: 4px 7px;
+            }
+            
+            .app-install-btn {
+                font-size: 8px !important;
+                padding: 3px 6px !important;
+            }
+            
+            .logout-btn, .settings-btn {
+                padding: 3px 5px;
+                font-size: 11px;
             }
             
             .promo-banner {
-                top: 60px;
+                top: 88px;
                 height: 30px;
             }
             
@@ -1459,7 +1497,7 @@
             }
             
             .chat-section {
-                margin-top: 95px;
+                margin-top: 122px;
             }
             
             .message {
@@ -1511,19 +1549,29 @@
         /* Responsive - Móviles pequeños (iPhone SE, etc) */
         @media (max-width: 375px) {
             .header {
-                min-height: 55px;
-                padding: 5px 6px;
+                min-height: auto;
+                padding: 5px;
+                grid-template-columns: auto 1fr;
+                grid-template-rows: auto auto;
+                row-gap: 3px;
+            }
+            
+            .header-right {
+                grid-column: 1 / -1;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+                gap: 3px;
             }
             
             .fire-btn {
-                width: 38px;
-                height: 38px;
+                width: 36px;
+                height: 36px;
                 font-size: 16px;
             }
             
             .refund-btn {
                 padding: 2px 3px;
-                min-width: 40px;
+                min-width: 38px;
                 font-size: 5px;
             }
             
@@ -1531,8 +1579,13 @@
                 font-size: 7px;
             }
             
+            .promo-banner {
+                top: 84px;
+                height: 28px;
+            }
+            
             .chat-section {
-                margin-top: 90px;
+                margin-top: 116px;
                 margin-bottom: 65px;
             }
             
@@ -1557,8 +1610,19 @@
         /* Responsive - Modo landscape en móviles */
         @media (max-height: 500px) and (orientation: landscape) {
             .header {
-                min-height: 50px;
-                padding: 5px 10px;
+                min-height: auto;
+                padding: 4px 8px;
+                grid-template-columns: auto 1fr auto;
+                grid-template-rows: auto;
+                row-gap: 0;
+            }
+            
+            .header-right {
+                grid-column: auto;
+                justify-content: flex-end;
+                flex-wrap: nowrap;
+                gap: 4px;
+                overflow: visible;
             }
             
             .promo-banner {
@@ -1566,20 +1630,43 @@
             }
             
             .chat-section {
-                margin-top: 60px;
+                margin-top: 54px;
                 margin-bottom: 60px;
             }
             
             .fire-btn {
-                width: 40px;
-                height: 40px;
-                font-size: 18px;
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
             }
             
             .refund-btn {
-                padding: 3px 5px;
-                min-width: 45px;
+                padding: 2px 4px;
+                min-width: 40px;
                 font-size: 6px;
+            }
+            
+            .refund-amount {
+                font-size: 7px;
+            }
+            
+            .header-center {
+                gap: 3px;
+            }
+            
+            .plataforma-btn, .support-btn, .user-name, .info-btn {
+                font-size: 8px;
+                padding: 2px 5px;
+            }
+            
+            .logout-btn, .settings-btn {
+                padding: 2px 4px;
+                font-size: 10px;
+            }
+            
+            .app-install-btn {
+                font-size: 7px !important;
+                padding: 2px 5px !important;
             }
         }
         
@@ -1684,9 +1771,6 @@
 
         /* Landscape en móvil */
         @media (max-height: 500px) and (orientation: landscape) {
-            .header-center {
-                display: none;
-            }
             .chat-messages {
                 min-height: 150px;
             }
