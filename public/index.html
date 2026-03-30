@@ -183,6 +183,21 @@
             display: flex;
             align-items: center;
             justify-content: flex-start;
+            gap: 6px;
+        }
+
+        /* Grupo de configuración/cerrar sesión junto al fueguito */
+        .user-action-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .user-action-btns .settings-btn,
+        .user-action-btns .logout-btn {
+            padding: 4px 7px;
+            font-size: 13px;
+            line-height: 1;
         }
         
         .header-center {
@@ -448,12 +463,6 @@
         
         .header-right .notification-btn.active {
             background: linear-gradient(135deg, #00cc6a 0%, #00ff88 100%);
-        }
-        
-        .header-right .settings-btn,
-        .header-right .logout-btn {
-            font-size: 12px;
-            padding: 5px 8px;
         }
         
         /* Botón de instalación APP - SIEMPRE VISIBLE */
@@ -1299,18 +1308,18 @@
             }
             
             .refund-btn {
-                padding: 4px 5px;
-                min-width: 50px;
-                font-size: 7px;
+                padding: 8px 8px;
+                min-width: 68px;
+                font-size: 9px;
                 border-radius: 8px;
             }
             
             .refund-amount {
-                font-size: 9px;
+                font-size: 11px;
             }
             
             .refund-timer {
-                font-size: 7px;
+                font-size: 8px;
             }
             
             .platform-section {
@@ -1352,7 +1361,7 @@
             }
             
             .promo-banner {
-                top: 94px;
+                top: 106px;
                 height: 35px;
             }
             
@@ -1362,7 +1371,7 @@
             }
             
             .chat-section {
-                margin-top: 134px;
+                margin-top: 146px;
                 margin-bottom: 70px;
             }
             
@@ -1440,13 +1449,13 @@
             }
             
             .refund-btn {
-                padding: 3px 4px;
-                min-width: 42px;
-                font-size: 6px;
+                padding: 6px 7px;
+                min-width: 60px;
+                font-size: 8px;
             }
             
             .refund-amount {
-                font-size: 8px;
+                font-size: 10px;
             }
             
             .platform-section {
@@ -1488,7 +1497,7 @@
             }
             
             .promo-banner {
-                top: 88px;
+                top: 98px;
                 height: 30px;
             }
             
@@ -1497,7 +1506,7 @@
             }
             
             .chat-section {
-                margin-top: 122px;
+                margin-top: 132px;
             }
             
             .message {
@@ -1570,22 +1579,22 @@
             }
             
             .refund-btn {
-                padding: 2px 3px;
-                min-width: 38px;
-                font-size: 5px;
-            }
-            
-            .refund-amount {
+                padding: 5px 6px;
+                min-width: 54px;
                 font-size: 7px;
             }
             
+            .refund-amount {
+                font-size: 9px;
+            }
+            
             .promo-banner {
-                top: 84px;
+                top: 92px;
                 height: 28px;
             }
             
             .chat-section {
-                margin-top: 116px;
+                margin-top: 124px;
                 margin-bottom: 65px;
             }
             
@@ -1641,13 +1650,13 @@
             }
             
             .refund-btn {
-                padding: 2px 4px;
-                min-width: 40px;
-                font-size: 6px;
+                padding: 3px 5px;
+                min-width: 48px;
+                font-size: 7px;
             }
             
             .refund-amount {
-                font-size: 7px;
+                font-size: 8px;
             }
             
             .header-center {
@@ -1817,12 +1826,16 @@
     <div id="chatScreen" class="chat-screen hidden">
         <!-- Header -->
         <header class="header">
-            <!-- Sección izquierda: Fueguito -->
+            <!-- Sección izquierda: Fueguito + Configuración/Cerrar sesión -->
             <div class="header-left">
                 <button id="fireBtn" class="fire-btn" title="Racha diaria - Reclama cada día!">
                     🔥
                     <span class="fire-streak" id="fireStreak">0</span>
                 </button>
+                <div class="user-action-btns">
+                    <button class="settings-btn" id="settingsBtn" title="Configuración">⚙️</button>
+                    <button class="logout-btn" id="logoutBtn">🚪</button>
+                </div>
             </div>
             
             <!-- Sección centro: Reembolsos -->
@@ -1866,8 +1879,6 @@
                 </a>
                 <button class="info-btn" id="infoBtn" title="Información del servicio">ℹ️ INFO</button>
                 <span class="user-name" id="currentUser">Usuario</span>
-                <button class="settings-btn" id="settingsBtn" title="Configuración">⚙️</button>
-                <button class="logout-btn" id="logoutBtn">🚪</button>
             </div>
         </header>
 
