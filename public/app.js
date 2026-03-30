@@ -2480,7 +2480,7 @@ function showInstallInstructions(platform) {
         note = '⚠️ <strong>Solo funciona desde Safari.</strong>';
         steps = [
             'Abrí esta página en <strong>Safari</strong> (no Chrome, no otro navegador)',
-            'Tocá el botón <strong>Compartir</strong> <span style="font-size:18px">⎋</span> en la barra inferior',
+            'Tocá el botón <strong>Compartir</strong> <span style="font-size:18px">⬆️</span> en la barra inferior de Safari',
             'Deslizá hacia abajo y tocá <strong>"Agregar a pantalla de inicio"</strong>',
             'Presioná <strong>"Agregar"</strong>'
         ];
