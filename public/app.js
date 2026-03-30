@@ -41,7 +41,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // CORREGIDO: Registrar Service Worker para notificaciones push
     registerUserServiceWorker();
+
+    // Ajustar layout dinámicamente según altura real del header
+    adjustLayout();
 });
+
+window.addEventListener('load', adjustLayout);
+window.addEventListener('resize', adjustLayout);
+window.addEventListener('orientationchange', () => setTimeout(adjustLayout, 150));
 
 // CORREGIDO: Registrar Service Worker del usuario
 async function registerUserServiceWorker() {
@@ -2168,6 +2175,9 @@ function showChatScreen() {
     document.getElementById('chatScreen').classList.remove('hidden');
     document.getElementById('currentUser').textContent = currentUser?.username || 'Usuario';
     
+    // Ajustar layout ahora que el header es visible
+    adjustLayout();
+
     // Iniciar sincronización de saldo
     syncBalance();
     startBalancePolling();
@@ -2373,6 +2383,37 @@ function escapeHtml(text) {
 }
 
 // ========================================
+// LAYOUT - AJUSTE DINÁMICO (banner debajo del header)
+// ========================================
+
+function adjustLayout() {
+    const header = document.querySelector('.header');
+    const promoBanner = document.querySelector('.promo-banner');
+    const chatSection = document.querySelector('.chat-section');
+
+    if (!header) return;
+
+    const headerHeight = header.getBoundingClientRect().height;
+
+    if (promoBanner) {
+        const bannerComputed = window.getComputedStyle(promoBanner);
+        if (bannerComputed.display !== 'none') {
+            promoBanner.style.top = headerHeight + 'px';
+            const bannerHeight = promoBanner.getBoundingClientRect().height;
+            if (chatSection) {
+                chatSection.style.marginTop = (headerHeight + bannerHeight) + 'px';
+            }
+        } else {
+            if (chatSection) {
+                chatSection.style.marginTop = headerHeight + 'px';
+            }
+        }
+    } else if (chatSection) {
+        chatSection.style.marginTop = headerHeight + 'px';
+    }
+}
+
+// ========================================
 // PWA - INSTALACIÓN DE LA APP
 // ========================================
 
@@ -2420,10 +2461,9 @@ window.addEventListener('appinstalled', () => {
         headerInstallBtn.style.display = 'none';
         headerInstallBtn.classList.add('hidden');
     }
-    // CORREGIDO: Ocultar botón APP del header
+    // Ocultar botón APP del header usando clase .hidden (anula !important del CSS)
     if (appInstallBtn) {
-        appInstallBtn.style.display = 'none';
-        appInstallBtn.classList.remove('show');
+        appInstallBtn.classList.add('hidden');
     }
     // Limpiar el prompt guardado
     window.deferredPrompt = null;
@@ -2551,10 +2591,9 @@ if (isAppInstalled()) {
         headerInstallBtn.style.display = 'none';
         headerInstallBtn.classList.add('hidden');
     }
-    // CORREGIDO: Ocultar botón APP si ya está instalada
+    // Ocultar botón APP usando clase .hidden (anula !important del CSS)
     if (appInstallBtn) {
-        appInstallBtn.style.display = 'none';
-        appInstallBtn.classList.remove('show');
+        appInstallBtn.classList.add('hidden');
     }
 }
 
