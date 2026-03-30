@@ -1664,6 +1664,60 @@
                 min-height: 150px;
             }
         }
+        /* Install instruction modal */
+        .install-modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.88);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .install-modal-box {
+            background: linear-gradient(135deg, #1a0033, #0a0015);
+            border: 2px solid #d4af37;
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 380px;
+            width: 100%;
+            color: #fff;
+            box-sizing: border-box;
+        }
+        .install-modal-box h3 {
+            color: #d4af37;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        .install-modal-subtitle {
+            color: #ffaa00;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        .install-modal-steps {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .install-modal-steps ol {
+            padding-left: 18px;
+            margin: 8px 0;
+            line-height: 2;
+        }
+        .install-modal-btn {
+            margin-top: 20px;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #d4af37, #00cc6a);
+            border: none;
+            border-radius: 25px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #000;
+        }
     </style>
 </head>
 <body>

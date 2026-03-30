@@ -2473,13 +2473,12 @@ function showInstallInstructionModal(title, subtitle, steps) {
     if (existing) existing.remove();
     const overlay = document.createElement('div');
     overlay.className = 'install-modal-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
     overlay.innerHTML = `
-        <div style="background:linear-gradient(135deg,#1a0033,#0a0015);border:2px solid #d4af37;border-radius:20px;padding:25px;max-width:380px;width:100%;color:#fff;box-sizing:border-box;">
-            <h3 style="color:#d4af37;margin-bottom:10px;font-size:1.1em;">${title}</h3>
-            ${subtitle ? `<p style="color:#ffaa00;margin-bottom:12px;font-size:13px;">${subtitle}</p>` : ''}
-            <div style="font-size:14px;line-height:1.6;">${steps}</div>
-            <button onclick="this.closest('.install-modal-overlay').remove()" style="margin-top:20px;width:100%;padding:12px;background:linear-gradient(135deg,#d4af37,#00cc6a);border:none;border-radius:25px;font-size:15px;font-weight:bold;cursor:pointer;color:#000;">Entendido ✓</button>
+        <div class="install-modal-box">
+            <h3>${title}</h3>
+            ${subtitle ? `<p class="install-modal-subtitle">${subtitle}</p>` : ''}
+            <div class="install-modal-steps">${steps}</div>
+            <button class="install-modal-btn" onclick="this.closest('.install-modal-overlay').remove()">Entendido ✓</button>
         </div>`;
     document.body.appendChild(overlay);
 }
