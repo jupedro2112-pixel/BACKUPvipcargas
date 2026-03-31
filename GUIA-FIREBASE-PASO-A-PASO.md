@@ -53,7 +53,7 @@ const firebaseConfig = {
 2. Haz clic en **"Generar par de claves"**
 3. Aparecerá una clave larga como esta:
    ```
-   BMiQup3H-HSz11WPrifwz7yZqk-acTeEhqqxMnNA0RidRwAY_gQcLORHX0Vog3U0PRzdmK_N3vkejw91WIZThG0
+   BHnnRx4J6u3aYBK_JExhceybaNNLhMEGosFSFau0niy0cSsW1qw02oZqyFFfOH-Hnr61mQq7TOVcM3TW58eVQRc
    ```
 4. **Guarda esta clave (VAPID Key)**
 
