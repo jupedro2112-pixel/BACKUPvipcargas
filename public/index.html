@@ -2886,23 +2886,25 @@
         // ============================================
         // MANEJAR NOTIFICACIONES EN PRIMER PLANO
         // ============================================
-        messaging.onMessage(function(payload) {
-            console.log('[FCM] Notificación recibida en primer plano:', payload);
-            
-            const notif = payload.notification || {};
-            const notificationTitle = notif.title || 'Sala de Juegos';
-            const notificationOptions = {
-                body: notif.body || 'Nueva notificación',
-                icon: notif.icon || '/icons/icon-192x192.png',
-                badge: '/icons/icon-72x72.png',
-                tag: payload.data?.tag || 'default'
-            };
-            
-            // Mostrar notificación solo si la app no está enfocada
-            if (document.visibilityState !== 'visible') {
-                new Notification(notificationTitle, notificationOptions);
-            }
-        });
+        if (messaging) {
+            messaging.onMessage(function(payload) {
+                console.log('[FCM] Notificación recibida en primer plano:', payload);
+
+                const notif = payload.notification || {};
+                const notificationTitle = notif.title || 'Sala de Juegos';
+                const notificationOptions = {
+                    body: notif.body || 'Nueva notificación',
+                    icon: notif.icon || '/icons/icon-192x192.png',
+                    badge: '/icons/icon-72x72.png',
+                    tag: payload.data?.tag || 'default'
+                };
+
+                // Mostrar notificación solo si la app no está enfocada
+                if (document.visibilityState !== 'visible') {
+                    new Notification(notificationTitle, notificationOptions);
+                }
+            });
+        }
         
         // ============================================
         // BOTÓN DE INSTALACIÓN PWA
