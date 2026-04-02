@@ -2638,7 +2638,9 @@
                             console.log('[FCM] ✅ getToken completado tras limpiar suscripción obsoleta');
                         }
                     } catch (tokenError) {
-                        console.error('[FCM] ❌ Error al obtener token:', tokenError.message);
+                        // Llega aquí si falló tanto el intento inicial como el reintento post-deleteToken.
+                        // En este punto el token es irrecuperable sin intervención del usuario.
+                        console.error('[FCM] ❌ Error al obtener token (intento 1 + reintento fallaron):', tokenError.message);
                         console.error('[FCM] Código de error:', tokenError.code || 'n/a');
                         console.error('[FCM] Error completo:', tokenError);
                         

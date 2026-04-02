@@ -496,11 +496,11 @@ async function verifyToken() {
             // Re-sincronizar token FCM con el servidor en cada reanudación de sesión.
             // Si el token fue borrado del backend (por un envío fallido previo), esto
             // lo vuelve a registrar automáticamente sin esperar un login nuevo.
-            if (typeof sendFcmTokenAfterLogin === 'function') {
-                sendFcmTokenAfterLogin().catch(function(e) {
-                    console.warn('[FCM] Error al re-sincronizar token en verifyToken:', e);
-                });
-            }
+            // sendFcmTokenAfterLogin está siempre definida: se declara en app.js y el
+            // script inline de index.html la sobreescribe con la versión mejorada.
+            sendFcmTokenAfterLogin().catch(function(e) {
+                console.warn('[FCM] Error al re-sincronizar token en verifyToken:', e);
+            });
         } else {
             localStorage.removeItem('userToken');
         }
