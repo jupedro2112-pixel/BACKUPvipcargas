@@ -2779,10 +2779,13 @@ app.post('/api/admin/bonus', authMiddleware, depositorMiddleware, async (req, re
     const { username: rawUsername, userId: rawUserId, amount } = req.body;
 
     // Resolver username: puede venir como username directo o como userId
-    // Sanitizar userId a string para evitar inyección NoSQL
+    // Rechazar cualquier userId que no sea string primitivo (previene inyección NoSQL)
     let resolvedUsername = rawUsername && typeof rawUsername === 'string' ? rawUsername.trim() : null;
     if (!resolvedUsername && rawUserId) {
-      const safeUserId = String(rawUserId).trim();
+      if (typeof rawUserId !== 'string') {
+        return res.status(400).json({ error: 'userId inválido' });
+      }
+      const safeUserId = rawUserId.trim();
       const user = await User.findOne({ id: safeUserId });
       if (!user) {
         return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -3744,14 +3747,17 @@ app.get('/api/admin/transactions', authMiddleware, adminMiddleware, async (req, 
     // horario argentino (ART = UTC-3, sin DST).
     // 00:00 ART = 03:00 UTC del mismo día.
     // 23:59:59 ART = 02:59:59 UTC del día siguiente.
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
     if (from || to) {
       query.timestamp = {};
       if (from) {
+        if (!DATE_RE.test(from)) return res.status(400).json({ error: 'Formato de fecha inválido para "from" (esperado YYYY-MM-DD)' });
         // Inicio del día en Argentina: 00:00 ART = 03:00 UTC
         const fromDate = new Date(from + 'T03:00:00.000Z');
         query.timestamp.$gte = fromDate;
       }
       if (to) {
+        if (!DATE_RE.test(to)) return res.status(400).json({ error: 'Formato de fecha inválido para "to" (esperado YYYY-MM-DD)' });
         // Fin del día en Argentina: 23:59:59.999 ART = inicio del día siguiente 03:00 UTC - 1ms
         const toDate = new Date(to + 'T03:00:00.000Z');
         toDate.setTime(toDate.getTime() + 24 * 60 * 60 * 1000 - 1);
