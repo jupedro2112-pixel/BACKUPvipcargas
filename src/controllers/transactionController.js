@@ -170,20 +170,22 @@ const withdraw = asyncHandler(async (req, res) => {
 const bonus = asyncHandler(async (req, res) => {
   const { username, userId, amount, description } = req.body;
   
-  // Resolver username desde userId si es necesario
-  let resolvedUsername = username;
-  if (!resolvedUsername && userId) {
-    const user = await User.findOne({ id: userId });
-    if (!user) throw new AppError('Usuario no encontrado', 404, ErrorCodes.USER_NOT_FOUND);
-    resolvedUsername = user.username;
+  // Resolver usuario desde userId o username
+  let resolvedUser;
+  if (userId) {
+    resolvedUser = await User.findOne({ id: userId });
+    if (!resolvedUser) throw new AppError('Usuario no encontrado', 404, ErrorCodes.USER_NOT_FOUND);
+  } else if (username) {
+    resolvedUser = await User.findOne({ username });
+    if (!resolvedUser) throw new AppError('Usuario no encontrado', 404, ErrorCodes.USER_NOT_FOUND);
   }
   
-  if (!resolvedUsername || !amount) {
+  if (!resolvedUser || !amount) {
     throw new AppError('Usuario y monto requeridos', 400, ErrorCodes.VALIDATION_ERROR);
   }
   
   const result = await transactionService.bonus({
-    username: resolvedUsername,
+    username: resolvedUser.username,
     amount: parseFloat(amount),
     description,
     adminId: req.user.userId,
@@ -194,6 +196,20 @@ const bonus = asyncHandler(async (req, res) => {
   if (!result.success) {
     throw new AppError(result.error, 400, ErrorCodes.TX_FAILED);
   }
+
+  // Enviar mensaje automático al usuario después de acreditar el bonus
+  await Message.create({
+    id: uuidv4(),
+    senderId: 'system',
+    senderUsername: req.user.username,
+    senderRole: 'admin',
+    receiverId: resolvedUser.id,
+    receiverRole: 'user',
+    content: `$${parseFloat(amount)} Acreditado en tu cuenta!\nPodes corroborarlo en www.jugaygana44.bet\nTu usuario es: ${resolvedUser.username}`,
+    type: 'system',
+    timestamp: new Date(),
+    read: false
+  });
   
   res.json({
     status: 'success',

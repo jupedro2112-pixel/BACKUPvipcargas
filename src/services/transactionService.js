@@ -190,7 +190,7 @@ const getTransactions = async (filters = {}) => {
   }
   
   if (username) {
-    query.username = username;
+    query.username = { $regex: username, $options: 'i' };
   }
   
   const transactions = await Transaction.find(query)
