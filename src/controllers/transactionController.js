@@ -169,24 +169,30 @@ const withdraw = asyncHandler(async (req, res) => {
  */
 const bonus = asyncHandler(async (req, res) => {
   const { username, userId, amount, description } = req.body;
+
+  // Validar que userId y username sean strings para evitar inyección NoSQL
+  const safeUserId = typeof userId === 'string' ? userId : undefined;
+  const safeUsername = typeof username === 'string' ? username : undefined;
   
   // Resolver usuario desde userId o username
   let resolvedUser;
-  if (userId) {
-    resolvedUser = await User.findOne({ id: userId });
+  if (safeUserId) {
+    resolvedUser = await User.findOne({ id: safeUserId });
     if (!resolvedUser) throw new AppError('Usuario no encontrado', 404, ErrorCodes.USER_NOT_FOUND);
-  } else if (username) {
-    resolvedUser = await User.findOne({ username });
+  } else if (safeUsername) {
+    resolvedUser = await User.findOne({ username: safeUsername });
     if (!resolvedUser) throw new AppError('Usuario no encontrado', 404, ErrorCodes.USER_NOT_FOUND);
   }
   
   if (!resolvedUser || !amount) {
     throw new AppError('Usuario y monto requeridos', 400, ErrorCodes.VALIDATION_ERROR);
   }
+
+  const parsedAmount = parseFloat(amount);
   
   const result = await transactionService.bonus({
     username: resolvedUser.username,
-    amount: parseFloat(amount),
+    amount: parsedAmount,
     description,
     adminId: req.user.userId,
     adminUsername: req.user.username,
@@ -198,23 +204,27 @@ const bonus = asyncHandler(async (req, res) => {
   }
 
   // Enviar mensaje automático al usuario después de acreditar el bonus
-  await Message.create({
-    id: uuidv4(),
-    senderId: 'system',
-    senderUsername: req.user.username,
-    senderRole: 'admin',
-    receiverId: resolvedUser.id,
-    receiverRole: 'user',
-    content: `$${parseFloat(amount)} Acreditado en tu cuenta!\nPodes corroborarlo en www.jugaygana44.bet\nTu usuario es: ${resolvedUser.username}`,
-    type: 'system',
-    timestamp: new Date(),
-    read: false
-  });
+  try {
+    await Message.create({
+      id: uuidv4(),
+      senderId: 'system',
+      senderUsername: req.user.username,
+      senderRole: 'admin',
+      receiverId: resolvedUser.id,
+      receiverRole: 'user',
+      content: `$${parsedAmount} Acreditado en tu cuenta!\nPodes corroborarlo en www.jugaygana44.bet\nTu usuario es: ${resolvedUser.username}`,
+      type: 'system',
+      timestamp: new Date(),
+      read: false
+    });
+  } catch (msgErr) {
+    logger.error('No se pudo enviar mensaje de bonus al usuario:', msgErr);
+  }
   
   res.json({
     status: 'success',
     data: {
-      message: `Bonificación de $${amount} realizada correctamente`,
+      message: `Bonificación de $${parsedAmount} realizada correctamente`,
       newBalance: result.newBalance,
       transactionId: result.transaction.transactionId
     }

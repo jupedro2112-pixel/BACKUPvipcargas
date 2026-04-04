@@ -363,7 +363,7 @@ const getStats = asyncHandler(async (req, res) => {
 const getTransactions = asyncHandler(async (req, res) => {
   const { from, to, type, username } = req.query;
   
-  const result = await transactionService.getTransactions({ from, to, type, username: username || undefined });
+  const result = await transactionService.getTransactions({ from, to, type, username });
   
   res.json({
     status: 'success',
