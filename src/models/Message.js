@@ -96,7 +96,7 @@ messageSchema.index({ timestamp: -1 });
 
 // Método estático para obtener mensajes de una conversación
 messageSchema.statics.getConversation = async function(userId, options = {}) {
-  const { limit = 50, before = null, after = null } = options;
+  const { limit = 25, before = null, after = null } = options;
   
   const query = {
     $or: [

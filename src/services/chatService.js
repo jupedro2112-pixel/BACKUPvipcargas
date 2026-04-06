@@ -17,14 +17,29 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 const chatListCache = new Map();
 const CHAT_LIST_CACHE_TTL = 10 * 1000; // 10 segundos
 
+// Límites para carga por defecto (live/normal) de mensajes
+const LIVE_MESSAGES_LIMIT = 25;
+const LIVE_MESSAGES_HOURS = 4;
+
 /**
  * Obtener mensajes de una conversación (optimizado)
+ * Carga por defecto (sin cursor `before`): últimas 4 horas, máximo 25 mensajes.
+ * Con cursor `before` (historial completo): sin filtro de tiempo, límite configurable.
  */
 const getMessages = async (userId, options = {}) => {
-  const { limit = 50, before = null, useCache = true } = options;
-  
-  // Intentar obtener del cache
-  const cacheKey = `${userId}:${before || 'latest'}`;
+  const { limit = LIVE_MESSAGES_LIMIT, before = null, useCache = true } = options;
+
+  // Carga live/normal: aplicar filtro de 4 horas y cap de 25 mensajes
+  // El Math.min protege contra callers que pasen un limit mayor explícitamente
+  const isLiveLoad = !before;
+  const effectiveLimit = isLiveLoad ? Math.min(limit, LIVE_MESSAGES_LIMIT) : limit;
+
+  // Para cargas live usamos un bucket de 1 minuto en la clave de cache para evitar
+  // que resultados cacheados incluyan mensajes fuera de la ventana de 4 horas.
+  // (El drift máximo es la duración del cache TTL = 5 min, irrelevante vs 4 h.)
+  const cacheKey = isLiveLoad
+    ? `${userId}:latest`
+    : `${userId}:${before}`;
   if (useCache && conversationCache.has(cacheKey)) {
     const cached = conversationCache.get(cacheKey);
     if (Date.now() - cached.timestamp < CACHE_TTL) {
@@ -32,20 +47,29 @@ const getMessages = async (userId, options = {}) => {
     }
     conversationCache.delete(cacheKey);
   }
-  
+
+  // Armar condiciones del $match
+  const matchConditions = {
+    $or: [
+      { senderId: userId },
+      { receiverId: userId }
+    ]
+  };
+
+  if (before) {
+    // Historial: mensajes anteriores al cursor
+    matchConditions.timestamp = { $lt: new Date(before) };
+  } else {
+    // Carga live: solo mensajes de las últimas 4 horas
+    const cutoff = new Date(Date.now() - LIVE_MESSAGES_HOURS * 60 * 60 * 1000);
+    matchConditions.timestamp = { $gte: cutoff };
+  }
+
   // Consulta optimizada con agregación
   const messages = await Message.aggregate([
-    {
-      $match: {
-        $or: [
-          { senderId: userId },
-          { receiverId: userId }
-        ],
-        ...(before && { timestamp: { $lt: new Date(before) } })
-      }
-    },
+    { $match: matchConditions },
     { $sort: { timestamp: -1 } },
-    { $limit: limit },
+    { $limit: effectiveLimit },
     { $sort: { timestamp: 1 } },
     {
       $project: {

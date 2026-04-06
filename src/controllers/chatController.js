@@ -23,7 +23,7 @@ const getMessages = asyncHandler(async (req, res) => {
   }
   
   const messages = await chatService.getMessages(userId, {
-    limit: parseInt(limit) || 50,
+    limit: parseInt(limit) || 25,
     before,
     useCache: true
   });
