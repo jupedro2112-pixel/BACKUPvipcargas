@@ -3965,7 +3965,7 @@ app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) =>
 });
 
 // ============================================
-// DATOS - Métricas de adquisición y retención por fecha
+// DATOS - Métricas de adquisición, actividad y recurrencia
 // ============================================
 
 app.get('/api/admin/datos', authMiddleware, adminMiddleware, async (req, res) => {
@@ -3973,32 +3973,65 @@ app.get('/api/admin/datos', authMiddleware, adminMiddleware, async (req, res) =>
     // Argentina es UTC-3 todo el año
     const ART_OFFSET_MS = 3 * 60 * 60 * 1000;
 
-    let dayStartUTC, dayEndUTC;
+    let startUTC, endUTC, periodLabel, isSingleDay = true;
 
     if (req.query.date) {
-      // date debe ser YYYY-MM-DD en horario ART
+      // Fecha exacta YYYY-MM-DD en ART
       const [year, month, day] = req.query.date.split('-').map(Number);
       if (!year || !month || !day) {
         return res.status(400).json({ error: 'Formato de fecha inválido. Use YYYY-MM-DD.' });
       }
-      // Construir inicio del día ART como UTC
-      dayStartUTC = new Date(Date.UTC(year, month - 1, day, 3, 0, 0, 0)); // ART medianoche = 03:00 UTC
+      startUTC = new Date(Date.UTC(year, month - 1, day, 3, 0, 0, 0)); // ART 00:00 = UTC 03:00
+      endUTC   = new Date(startUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
+      periodLabel = req.query.date;
     } else {
-      // Sin fecha: usar el día actual en ART
+      const period = req.query.period || 'today';
       const nowUTC = Date.now();
       const todayART = new Date(nowUTC - ART_OFFSET_MS);
       todayART.setUTCHours(0, 0, 0, 0);
-      dayStartUTC = new Date(todayART.getTime() + ART_OFFSET_MS);
+      const todayStartUTC = new Date(todayART.getTime() + ART_OFFSET_MS);
+
+      if (period === 'yesterday') {
+        startUTC    = new Date(todayStartUTC.getTime() - 24 * 60 * 60 * 1000);
+        endUTC      = new Date(todayStartUTC.getTime() - 1);
+        periodLabel = 'Ayer';
+      } else if (period === 'last7') {
+        startUTC    = new Date(todayStartUTC.getTime() - 6 * 24 * 60 * 60 * 1000);
+        endUTC      = new Date(todayStartUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
+        periodLabel = 'Últimos 7 días';
+        isSingleDay = false;
+      } else if (period === 'last30') {
+        startUTC    = new Date(todayStartUTC.getTime() - 29 * 24 * 60 * 60 * 1000);
+        endUTC      = new Date(todayStartUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
+        periodLabel = 'Últimos 30 días';
+        isSingleDay = false;
+      } else {
+        // today (default)
+        startUTC    = todayStartUTC;
+        endUTC      = new Date(todayStartUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
+        periodLabel = 'Hoy';
+      }
     }
 
-    dayEndUTC = new Date(dayStartUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
+    // Consultas paralelas
+    const [registeredCount, depositStats, neverDepositedResult] = await Promise.all([
 
-    const [newUsersCount, depositsCount, firstTimeStats] = await Promise.all([
-      User.countDocuments({ createdAt: { $gte: dayStartUTC, $lte: dayEndUTC } }),
-      Transaction.countDocuments({ type: 'deposit', timestamp: { $gte: dayStartUTC, $lte: dayEndUTC } }),
+      // Bloque A: usuarios role:'user' creados en el período
+      User.countDocuments({ createdAt: { $gte: startUTC, $lte: endUTC }, role: 'user' }),
+
+      // Bloques B + C + D: análisis completo de depósitos
       Transaction.aggregate([
-        { $match: { type: 'deposit', timestamp: { $gte: dayStartUTC, $lte: dayEndUTC } } },
-        { $group: { _id: '$username', dayCount: { $sum: 1 } } },
+        // 1. Depósitos del período
+        { $match: { type: 'deposit', timestamp: { $gte: startUTC, $lte: endUTC } } },
+
+        // 2. Agrupar por usuario: operaciones y monto en el período
+        { $group: {
+          _id: '$username',
+          periodDepositCount:  { $sum: 1 },
+          periodDepositAmount: { $sum: '$amount' }
+        }},
+
+        // 3. Buscar si el usuario tuvo depósitos ANTERIORES al período
         { $lookup: {
           from: 'transactions',
           let: { uname: '$_id' },
@@ -4006,35 +4039,109 @@ app.get('/api/admin/datos', authMiddleware, adminMiddleware, async (req, res) =>
             { $match: { $expr: { $and: [
               { $eq: ['$type', 'deposit'] },
               { $eq: ['$username', '$$uname'] },
-              { $lt: ['$timestamp', dayStartUTC] }
+              { $lt: ['$timestamp', startUTC] }
             ]}}}
           ],
           as: 'priorDeposits'
         }},
-        { $addFields: { isFirstTime: { $eq: [{ $size: '$priorDeposits' }, 0] } } },
+
+        // 4. Clasificar: ¿primera vez o recurrente? ¿depositó 2+ veces en el período?
+        { $addFields: {
+          isFirstTime: { $eq: [{ $size: '$priorDeposits' }, 0] },
+          hasMultiple: { $gte: ['$periodDepositCount', 2] }
+        }},
+
+        // 5. Totales
         { $group: {
-          _id: null,
-          firstTimeDeposits: { $sum: { $cond: ['$isFirstTime', '$dayCount', 0] } },
-          returningDeposits: { $sum: { $cond: ['$isFirstTime', 0, '$dayCount'] } },
-          firstTimeUsers: { $sum: { $cond: ['$isFirstTime', 1, 0] } },
-          returningUsers: { $sum: { $cond: ['$isFirstTime', 0, 1] } }
+          _id:                  null,
+          totalDeposits:        { $sum: '$periodDepositCount' },
+          totalAmount:          { $sum: '$periodDepositAmount' },
+          uniqueDepositors:     { $sum: 1 },
+          firstTimeDeposits:    { $sum: { $cond: ['$isFirstTime', '$periodDepositCount', 0] } },
+          firstTimeAmount:      { $sum: { $cond: ['$isFirstTime', '$periodDepositAmount', 0] } },
+          firstTimeUsers:       { $sum: { $cond: ['$isFirstTime', 1, 0] } },
+          returningDeposits:    { $sum: { $cond: ['$isFirstTime', 0, '$periodDepositCount'] } },
+          returningAmount:      { $sum: { $cond: ['$isFirstTime', 0, '$periodDepositAmount'] } },
+          returningUsers:       { $sum: { $cond: ['$isFirstTime', 0, 1] } },
+          multipleDepositUsers: { $sum: { $cond: ['$hasMultiple', 1, 0] } }
         }}
+      ]),
+
+      // Bloque A: usuarios registrados en el período que NUNCA han depositado
+      User.aggregate([
+        { $match: { createdAt: { $gte: startUTC, $lte: endUTC }, role: 'user' } },
+        { $lookup: {
+          from: 'transactions',
+          let: { uname: '$username' },
+          pipeline: [
+            { $match: { $expr: { $and: [
+              { $eq: ['$type', 'deposit'] },
+              { $eq: ['$username', '$$uname'] }
+            ]}}}
+          ],
+          as: 'allDeposits'
+        }},
+        { $match: { allDeposits: { $size: 0 } } },
+        { $count: 'total' }
       ])
     ]);
 
-    const stats = firstTimeStats[0] || { firstTimeDeposits: 0, returningDeposits: 0, firstTimeUsers: 0, returningUsers: 0 };
+    const ds = depositStats[0] || {
+      totalDeposits: 0, totalAmount: 0, uniqueDepositors: 0,
+      firstTimeDeposits: 0, firstTimeAmount: 0, firstTimeUsers: 0,
+      returningDeposits: 0, returningAmount: 0, returningUsers: 0,
+      multipleDepositUsers: 0
+    };
+    const neverDeposited = neverDepositedResult[0] ? neverDepositedResult[0].total : 0;
+
+    // Métricas derivadas (null si sin datos suficientes)
+    const conversionRate     = registeredCount > 0       ? Math.round((ds.firstTimeUsers  / registeredCount)      * 1000) / 10 : null;
+    const depositFrequency   = ds.uniqueDepositors > 0   ? Math.round((ds.totalDeposits   / ds.uniqueDepositors)  * 100)  / 100 : null;
+    const avgTicket          = ds.totalDeposits > 0      ? Math.round( ds.totalAmount      / ds.totalDeposits)              : null;
+    const avgPerDepositor    = ds.uniqueDepositors > 0   ? Math.round( ds.totalAmount      / ds.uniqueDepositors)           : null;
+    const returningPct       = ds.uniqueDepositors > 0   ? Math.round((ds.returningUsers   / ds.uniqueDepositors)  * 1000) / 10 : null;
+    const repeatRate         = ds.uniqueDepositors > 0   ? Math.round((ds.multipleDepositUsers / ds.uniqueDepositors) * 1000) / 10 : null;
 
     res.json({
       status: 'success',
       data: {
-        newUsersToday: newUsersCount,
-        depositsToday: depositsCount,
-        firstTimeDeposits: stats.firstTimeDeposits,
-        returningDeposits: stats.returningDeposits,
-        firstTimeUsers: stats.firstTimeUsers,
-        returningUsers: stats.returningUsers,
-        dayRangeStart: dayStartUTC,
-        dayRangeEnd: dayEndUTC
+        period: { label: periodLabel, startUTC, endUTC, isSingleDay },
+
+        // Bloque A — Adquisición
+        acquisition: {
+          registeredUsers:          registeredCount,
+          firstDepositUsers:        ds.firstTimeUsers,
+          conversionRate,
+          registeredNeverDeposited: neverDeposited
+        },
+
+        // Bloque B — Actividad de depósitos
+        depositActivity: {
+          totalDeposits:          ds.totalDeposits,
+          uniqueDepositors:       ds.uniqueDepositors,
+          firstTimeDeposits:      ds.firstTimeDeposits,
+          firstTimeDepositUsers:  ds.firstTimeUsers,
+          returningDeposits:      ds.returningDeposits,
+          returningDepositUsers:  ds.returningUsers,
+          depositFrequency
+        },
+
+        // Bloque C — Calidad económica
+        economicQuality: {
+          totalAmount:      ds.totalAmount,
+          avgTicket,
+          avgPerDepositor,
+          firstTimeAmount:  ds.firstTimeAmount,
+          returningAmount:  ds.returningAmount
+        },
+
+        // Bloque D — Recurrencia
+        recurrence: {
+          activeReturningUsers: ds.returningUsers,
+          returningPct,
+          multipleDepositUsers: ds.multipleDepositUsers,
+          repeatRate
+        }
       }
     });
   } catch (error) {
