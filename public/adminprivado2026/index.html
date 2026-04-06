@@ -436,50 +436,177 @@
                 </div>
             </section>
 
-            <!-- SECCIÓN DATOS: métricas de adquisición y retención -->
+            <!-- SECCIÓN DATOS: métricas de adquisición, actividad y recurrencia -->
             <section id="datosSection" class="section">
                 <div class="panel-header">
-                    <h2><span class="icon icon-chart"></span> Datos del Día</h2>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <label for="datosFecha" style="font-size:0.85em;color:var(--text-secondary,#aaa);">Fecha:</label>
-                        <input type="date" id="datosFecha" onchange="loadDatos()" style="background:var(--darker,#1a1a2e);color:var(--light,#fff);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:4px 8px;font-size:0.85em;">
-                        <button class="btn btn-secondary btn-sm" onclick="loadDatos()">🔄 Actualizar</button>
+                    <h2><span class="icon icon-chart"></span> Datos</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="loadDatos()" title="Actualizar">🔄</button>
+                </div>
+
+                <!-- Selector de período -->
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.07);">
+                    <button class="btn btn-secondary btn-sm datos-period-btn active" data-period="today"     onclick="setDatosPeriod('today')">Hoy</button>
+                    <button class="btn btn-secondary btn-sm datos-period-btn"        data-period="yesterday" onclick="setDatosPeriod('yesterday')">Ayer</button>
+                    <button class="btn btn-secondary btn-sm datos-period-btn"        data-period="last7"     onclick="setDatosPeriod('last7')">7 días</button>
+                    <button class="btn btn-secondary btn-sm datos-period-btn"        data-period="last30"    onclick="setDatosPeriod('last30')">30 días</button>
+                    <span style="color:var(--text-secondary,#aaa);font-size:0.8em;margin-left:4px;">o fecha exacta:</span>
+                    <input type="date" id="datosFecha" onchange="setDatosDate(this.value)" style="background:var(--darker,#1a1a2e);color:var(--light,#fff);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:4px 8px;font-size:0.85em;">
+                    <span id="datosPeriodLabel" style="font-size:0.82em;color:var(--text-secondary,#aaa);margin-left:4px;font-style:italic;"></span>
+                </div>
+
+                <!-- BLOQUE A — ADQUISICIÓN -->
+                <div style="border-left:3px solid #4caf50;padding-left:14px;margin-bottom:22px;">
+                    <h4 style="margin:0 0 12px;font-size:0.8em;text-transform:uppercase;letter-spacing:.07em;color:#4caf50;">A — Adquisición</h4>
+                    <div class="stats-grid" style="grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:0;">
+                        <div class="stat-card">
+                            <span style="font-size:1.3rem">👤</span>
+                            <span id="datosRegisteredUsers" class="stat-number">—</span>
+                            <span class="stat-label">Usuarios registrados</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">cuentas creadas en el período</span>
+                        </div>
+                        <div class="stat-card" style="border-color:#4caf50">
+                            <span style="font-size:1.3rem">🆕</span>
+                            <span id="datosFirstDepositUsers" class="stat-number" style="color:#4caf50">—</span>
+                            <span class="stat-label">Con primera carga</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">usuarios cuya primera carga histórica fue en este período</span>
+                        </div>
+                        <div class="stat-card" style="border-color:#8bc34a">
+                            <span style="font-size:1.3rem">📊</span>
+                            <span id="datosConversionRate" class="stat-number" style="color:#8bc34a">—</span>
+                            <span class="stat-label">Conversión reg→carga</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">primera carga / registrados × 100</span>
+                        </div>
+                        <div class="stat-card" style="border-color:#607d8b">
+                            <span style="font-size:1.3rem">⏳</span>
+                            <span id="datosNeverDeposited" class="stat-number" style="color:#607d8b">—</span>
+                            <span class="stat-label">Registrados sin carga</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">registrados en el período que nunca depositaron</span>
+                        </div>
                     </div>
                 </div>
-                <div class="stats-grid" id="datosGrid">
-                    <div class="stat-card">
-                        <span class="icon icon-users"></span>
-                        <span id="datosNewUsers" class="stat-number">—</span>
-                        <span class="stat-label">Nuevos usuarios hoy</span>
-                    </div>
-                    <div class="stat-card" style="border-color:#00c853">
-                        <span style="font-size:1.4rem">💰</span>
-                        <span id="datosDepositsToday" class="stat-number" style="color:#00c853">—</span>
-                        <span class="stat-label">Depósitos del día</span>
-                    </div>
-                    <div class="stat-card" style="border-color:#2196f3">
-                        <span style="font-size:1.4rem">🆕</span>
-                        <span id="datosFirstTimeDeposits" class="stat-number" style="color:#2196f3">—</span>
-                        <span class="stat-label">Primeras cargas</span>
-                    </div>
-                    <div class="stat-card" style="border-color:#ff9800">
-                        <span style="font-size:1.4rem">🔁</span>
-                        <span id="datosReturningDeposits" class="stat-number" style="color:#ff9800">—</span>
-                        <span class="stat-label">Cargas recurrentes</span>
-                    </div>
-                    <div class="stat-card" style="border-color:#9c27b0">
-                        <span style="font-size:1.4rem">👤</span>
-                        <span id="datosFirstTimeUsers" class="stat-number" style="color:#9c27b0">—</span>
-                        <span class="stat-label">Usuarios nueva carga</span>
-                    </div>
-                    <div class="stat-card" style="border-color:#e91e63">
-                        <span style="font-size:1.4rem">♻️</span>
-                        <span id="datosReturningUsers" class="stat-number" style="color:#e91e63">—</span>
-                        <span class="stat-label">Usuarios recurrentes</span>
+
+                <!-- BLOQUE B — ACTIVIDAD DE DEPÓSITOS -->
+                <div style="border-left:3px solid #2196f3;padding-left:14px;margin-bottom:22px;">
+                    <h4 style="margin:0 0 12px;font-size:0.8em;text-transform:uppercase;letter-spacing:.07em;color:#2196f3;">B — Actividad de depósitos</h4>
+                    <div class="stats-grid" style="grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:0;">
+                        <div class="stat-card" style="border-color:#2196f3">
+                            <span style="font-size:1.3rem">💳</span>
+                            <span id="datosTotalDeposits" class="stat-number" style="color:#2196f3">—</span>
+                            <span class="stat-label">Depósitos totales</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">operaciones de depósito en el período</span>
+                        </div>
+                        <div class="stat-card">
+                            <span style="font-size:1.3rem">👥</span>
+                            <span id="datosUniqueDepositors" class="stat-number">—</span>
+                            <span class="stat-label">Usuarios que depositaron</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">usuarios únicos con ≥1 depósito</span>
+                        </div>
+                        <div class="stat-card" style="border-color:#00bcd4">
+                            <span style="font-size:1.3rem">🆕</span>
+                            <span id="datosFirstTimeDeposits" class="stat-number" style="color:#00bcd4">—</span>
+                            <span class="stat-label">Depósitos de nuevos</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">operaciones de usuarios primera vez</span>
+                        </div>
+                        <div class="stat-card" style="border-color:#00bcd4">
+                            <span style="font-size:1.3rem">👤</span>
+                            <span id="datosFirstTimeDepositUsers" class="stat-number" style="color:#00bcd4">—</span>
+                            <span class="stat-label">Usuarios nuevos cargantes</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">únicos con primera carga en el período</span>
+                        </div>
+                        <div class="stat-card" style="border-color:#ff9800">
+                            <span style="font-size:1.3rem">🔁</span>
+                            <span id="datosReturningDeposits" class="stat-number" style="color:#ff9800">—</span>
+                            <span class="stat-label">Depósitos recurrentes</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">operaciones de usuarios con historial previo</span>
+                        </div>
+                        <div class="stat-card" style="border-color:#ff9800">
+                            <span style="font-size:1.3rem">♻️</span>
+                            <span id="datosReturningUsers" class="stat-number" style="color:#ff9800">—</span>
+                            <span class="stat-label">Usuarios recurrentes</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">únicos con cargas previas al período</span>
+                        </div>
+                        <div class="stat-card">
+                            <span style="font-size:1.3rem">📈</span>
+                            <span id="datosFrequency" class="stat-number">—</span>
+                            <span class="stat-label">Frecuencia de carga</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">depósitos totales / usuarios únicos</span>
+                        </div>
                     </div>
                 </div>
-                <p style="margin-top:12px;font-size:0.8em;color:var(--text-secondary,#aaa);text-align:center">
-                    Horario Argentina (UTC-3). <em>Primeras cargas</em>: depósitos de usuarios que nunca habían cargado antes. <em>Recurrentes</em>: usuarios que ya tenían carga previa.
+
+                <!-- BLOQUE C — CALIDAD ECONÓMICA -->
+                <div style="border-left:3px solid #ffc107;padding-left:14px;margin-bottom:22px;">
+                    <h4 style="margin:0 0 12px;font-size:0.8em;text-transform:uppercase;letter-spacing:.07em;color:#ffc107;">C — Calidad económica</h4>
+                    <div class="stats-grid" style="grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:0;">
+                        <div class="stat-card" style="border-color:#ffc107">
+                            <span style="font-size:1.3rem">💰</span>
+                            <span id="datosTotalAmount" class="stat-number" style="color:#ffc107">—</span>
+                            <span class="stat-label">Total depositado</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">suma de montos en el período</span>
+                        </div>
+                        <div class="stat-card">
+                            <span style="font-size:1.3rem">🎫</span>
+                            <span id="datosAvgTicket" class="stat-number">—</span>
+                            <span class="stat-label">Ticket promedio</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">monto total / operaciones</span>
+                        </div>
+                        <div class="stat-card">
+                            <span style="font-size:1.3rem">🤑</span>
+                            <span id="datosAvgPerDepositor" class="stat-number">—</span>
+                            <span class="stat-label">Prom. por depositor</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">monto total / usuarios únicos</span>
+                        </div>
+                        <div class="stat-card" style="border-color:#00bcd4">
+                            <span style="font-size:1.3rem">🆕</span>
+                            <span id="datosFirstTimeAmount" class="stat-number" style="color:#00bcd4">—</span>
+                            <span class="stat-label">Monto de nuevos</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">de usuarios primera carga</span>
+                        </div>
+                        <div class="stat-card" style="border-color:#ff9800">
+                            <span style="font-size:1.3rem">🔁</span>
+                            <span id="datosReturningAmount" class="stat-number" style="color:#ff9800">—</span>
+                            <span class="stat-label">Monto de recurrentes</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">de usuarios con historial previo</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BLOQUE D — RECURRENCIA -->
+                <div style="border-left:3px solid #e91e63;padding-left:14px;margin-bottom:12px;">
+                    <h4 style="margin:0 0 12px;font-size:0.8em;text-transform:uppercase;letter-spacing:.07em;color:#e91e63;">D — Recurrencia</h4>
+                    <div class="stats-grid" style="grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:0;">
+                        <div class="stat-card" style="border-color:#e91e63">
+                            <span style="font-size:1.3rem">♻️</span>
+                            <span id="datosActiveReturning" class="stat-number" style="color:#e91e63">—</span>
+                            <span class="stat-label">Recurrentes activos</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">usuarios con cargas previas que depositaron en el período</span>
+                        </div>
+                        <div class="stat-card">
+                            <span style="font-size:1.3rem">📊</span>
+                            <span id="datosReturningPct" class="stat-number">—</span>
+                            <span class="stat-label">% recurrentes</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">recurrentes / depositadores únicos</span>
+                        </div>
+                        <div class="stat-card" style="border-color:#9c27b0">
+                            <span style="font-size:1.3rem">🔂</span>
+                            <span id="datosMultipleUsers" class="stat-number" style="color:#9c27b0">—</span>
+                            <span class="stat-label">Depositaron 2+ veces</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">usuarios con ≥2 depósitos en el período</span>
+                        </div>
+                        <div class="stat-card">
+                            <span style="font-size:1.3rem">🔁</span>
+                            <span id="datosRepeatRate" class="stat-number">—</span>
+                            <span class="stat-label">Tasa de repetición</span>
+                            <span style="display:block;font-size:0.7em;color:var(--text-secondary,#888);margin-top:4px;">depositaron 2+ / depositadores únicos</span>
+                        </div>
+                    </div>
+                </div>
+
+                <p style="margin-top:10px;font-size:0.77em;color:var(--text-secondary,#aaa);text-align:center;line-height:1.5;">
+                    Horario Argentina (UTC-3). &nbsp;
+                    <strong>Nuevos</strong>: usuarios cuya primera carga histórica ocurrió en el período seleccionado. &nbsp;
+                    <strong>Recurrentes</strong>: usuarios que ya tenían al menos una carga anterior al período. &nbsp;
+                    <strong>Registrados</strong>: cuentas creadas en el período (independiente de si cargaron).
                 </p>
             </section>
 

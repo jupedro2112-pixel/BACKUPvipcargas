@@ -1798,6 +1798,11 @@ body {
    PANEL DE NOTIFICACIONES - Utilidades extra
    ============================================ */
 .btn-sm { padding: 6px 12px; font-size: 12px; }
+.datos-period-btn.active {
+    background: var(--primary, #6c63ff);
+    color: #fff;
+}
+
 .btn-danger {
     padding: 10px 20px;
     background: var(--danger);

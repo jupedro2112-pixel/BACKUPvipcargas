@@ -2394,28 +2394,96 @@ async function closeChat() {
 }
 
 // ============================================
-// DATOS (métricas de adquisición y retención)
+// DATOS (métricas de adquisición, actividad y recurrencia)
 // ============================================
+let datosPeriod = 'today';
+
+function setDatosPeriod(period) {
+    datosPeriod = period;
+    // Limpiar fecha exacta
+    const fechaInput = document.getElementById('datosFecha');
+    if (fechaInput) fechaInput.value = '';
+    // Resaltar botón activo
+    document.querySelectorAll('.datos-period-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === period);
+    });
+    loadDatos();
+}
+
+function setDatosDate(date) {
+    if (!date) return;
+    datosPeriod = null;
+    document.querySelectorAll('.datos-period-btn').forEach(btn => btn.classList.remove('active'));
+    loadDatos();
+}
+
 async function loadDatos() {
     try {
         const fechaInput = document.getElementById('datosFecha');
         const fecha = fechaInput ? fechaInput.value : '';
         const url = fecha
             ? `${API_URL}/api/admin/datos?date=${encodeURIComponent(fecha)}`
-            : `${API_URL}/api/admin/datos`;
+            : `${API_URL}/api/admin/datos?period=${datosPeriod || 'today'}`;
+
         const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         if (!response.ok) throw new Error('Failed to load datos');
         const json = await response.json();
         const d = json.data || {};
-        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val !== undefined ? val : '—'; };
-        set('datosNewUsers', d.newUsersToday);
-        set('datosDepositsToday', d.depositsToday);
-        set('datosFirstTimeDeposits', d.firstTimeDeposits);
-        set('datosReturningDeposits', d.returningDeposits);
-        set('datosFirstTimeUsers', d.firstTimeUsers);
-        set('datosReturningUsers', d.returningUsers);
+
+        const set = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = (val !== undefined && val !== null) ? val : '—';
+        };
+        const setAmt = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = (val !== undefined && val !== null)
+                ? '$\u202F' + Number(val).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                : '—';
+        };
+        const setPct = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = (val !== undefined && val !== null) ? val + '%' : '—';
+        };
+
+        // Período activo
+        const periodLabel = document.getElementById('datosPeriodLabel');
+        if (periodLabel && d.period) periodLabel.textContent = '— ' + d.period.label;
+
+        const a = d.acquisition      || {};
+        const b = d.depositActivity  || {};
+        const c = d.economicQuality  || {};
+        const r = d.recurrence       || {};
+
+        // Bloque A — Adquisición
+        set('datosRegisteredUsers',  a.registeredUsers);
+        set('datosFirstDepositUsers', a.firstDepositUsers);
+        setPct('datosConversionRate', a.conversionRate);
+        set('datosNeverDeposited',   a.registeredNeverDeposited);
+
+        // Bloque B — Actividad de depósitos
+        set('datosTotalDeposits',          b.totalDeposits);
+        set('datosUniqueDepositors',       b.uniqueDepositors);
+        set('datosFirstTimeDeposits',      b.firstTimeDeposits);
+        set('datosFirstTimeDepositUsers',  b.firstTimeDepositUsers);
+        set('datosReturningDeposits',      b.returningDeposits);
+        set('datosReturningUsers',         b.returningDepositUsers);
+        set('datosFrequency',              b.depositFrequency);
+
+        // Bloque C — Calidad económica
+        setAmt('datosTotalAmount',       c.totalAmount);
+        setAmt('datosAvgTicket',         c.avgTicket);
+        setAmt('datosAvgPerDepositor',   c.avgPerDepositor);
+        setAmt('datosFirstTimeAmount',   c.firstTimeAmount);
+        setAmt('datosReturningAmount',   c.returningAmount);
+
+        // Bloque D — Recurrencia
+        set('datosActiveReturning',  r.activeReturningUsers);
+        setPct('datosReturningPct',  r.returningPct);
+        set('datosMultipleUsers',    r.multipleDepositUsers);
+        setPct('datosRepeatRate',    r.repeatRate);
+
     } catch (error) {
         console.error('Error loading datos:', error);
     }
