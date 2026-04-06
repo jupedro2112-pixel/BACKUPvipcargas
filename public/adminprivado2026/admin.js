@@ -951,7 +951,7 @@ async function loadConversations(forceRefresh = false) {
 async function prefetchMessages(convs) {
     for (const conv of convs) {
         if (!messageCache.has(conv.userId)) {
-            fetch(`${API_URL}/api/messages/${conv.userId}?limit=50`, {
+            fetch(`${API_URL}/api/messages/${conv.userId}?limit=25`, {
                 headers: { 'Authorization': `Bearer ${currentToken}` }
             })
             .then(r => r.json())
@@ -1148,7 +1148,7 @@ async function loadMessages(userId) {
         }
         
         // Cargar últimos 50 mensajes previos (límite del panel de admin)
-        const response = await fetch(`${API_URL}/api/messages/${userId}?limit=50`, {
+        const response = await fetch(`${API_URL}/api/messages/${userId}?limit=25`, {
             headers: { 'Authorization': `Bearer ${currentToken}` },
             signal: controller.signal
         });
@@ -3743,7 +3743,7 @@ async function prefetchFrequentConversations() {
     
     for (const conv of frequentUsers) {
         if (!messageCache.has(conv.userId)) {
-            fetch(`${API_URL}/api/messages/${conv.userId}?limit=50`, {
+            fetch(`${API_URL}/api/messages/${conv.userId}?limit=25`, {
                 headers: { 'Authorization': `Bearer ${currentToken}` }
             })
             .then(r => r.json())
