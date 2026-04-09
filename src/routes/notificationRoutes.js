@@ -675,7 +675,7 @@ router.get('/users-status', requireAdmin, async (req, res) => {
 
     const total = await User.countDocuments(query);
     const users = await User.find(query)
-      .select('username fcmToken fcmTokenUpdatedAt lastLogin createdAt balance')
+      .select('username fcmToken fcmTokenUpdatedAt lastLogin createdAt')
       .sort({ fcmTokenUpdatedAt: -1, lastLogin: -1 })
       .skip(skip)
       .limit(parseInt(limit))

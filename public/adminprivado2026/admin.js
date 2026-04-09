@@ -4047,23 +4047,61 @@ function renderNotifHistory() {
         el.innerHTML = '<p style="color:#888;text-align:center">Sin historial aún</p>';
         return;
     }
-    el.innerHTML = history.map(h => {
+    el.innerHTML = '';
+    history.forEach(h => {
         const d = new Date(h.date);
         const dateStr = d.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric' });
         const timeStr = d.toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit' });
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem .25rem;border-bottom:1px solid rgba(255,255,255,.06)">
-            <div>
-                <span style="color:#aaa;font-size:.8rem">${dateStr} ${timeStr}</span>
-                <span style="margin-left:.5rem;padding:.15rem .5rem;border-radius:99px;background:rgba(99,102,241,.2);color:#a5b4fc;font-size:.75rem">${escapeHtml(h.segment)}</span>
-            </div>
-            <div style="text-align:right">
-                <span style="color:#00ff88;font-weight:700">${h.totalSent}</span>
-                <span style="color:#aaa;font-size:.8rem"> enviados</span>
-                ${h.totalFailed > 0 ? `<span style="color:#f87171;margin-left:.4rem">${h.totalFailed} fallidos</span>` : ''}
-                <span style="color:#6366f1;margin-left:.4rem;font-size:.8rem">${h.successRate}%</span>
-            </div>
-        </div>`;
-    }).join('');
+        const totalSent = parseInt(h.totalSent) || 0;
+        const totalFailed = parseInt(h.totalFailed) || 0;
+        const successRate = parseInt(h.successRate) || 0;
+
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:.5rem .25rem;border-bottom:1px solid rgba(255,255,255,.06)';
+
+        const leftDiv = document.createElement('div');
+
+        const dateSpan = document.createElement('span');
+        dateSpan.style.cssText = 'color:#aaa;font-size:.8rem';
+        dateSpan.textContent = `${dateStr} ${timeStr}`;
+
+        const segmentBadge = document.createElement('span');
+        segmentBadge.style.cssText = 'margin-left:.5rem;padding:.15rem .5rem;border-radius:99px;background:rgba(99,102,241,.2);color:#a5b4fc;font-size:.75rem';
+        segmentBadge.textContent = h.segment || '';
+
+        leftDiv.appendChild(dateSpan);
+        leftDiv.appendChild(segmentBadge);
+
+        const rightDiv = document.createElement('div');
+        rightDiv.style.textAlign = 'right';
+
+        const sentSpan = document.createElement('span');
+        sentSpan.style.cssText = 'color:#00ff88;font-weight:700';
+        sentSpan.textContent = String(totalSent);
+
+        const sentLabel = document.createElement('span');
+        sentLabel.style.cssText = 'color:#aaa;font-size:.8rem';
+        sentLabel.textContent = ' enviados';
+
+        rightDiv.appendChild(sentSpan);
+        rightDiv.appendChild(sentLabel);
+
+        if (totalFailed > 0) {
+            const failedSpan = document.createElement('span');
+            failedSpan.style.cssText = 'color:#f87171;margin-left:.4rem';
+            failedSpan.textContent = `${totalFailed} fallidos`;
+            rightDiv.appendChild(failedSpan);
+        }
+
+        const rateSpan = document.createElement('span');
+        rateSpan.style.cssText = 'color:#6366f1;margin-left:.4rem;font-size:.8rem';
+        rateSpan.textContent = `${successRate}%`;
+        rightDiv.appendChild(rateSpan);
+
+        row.appendChild(leftDiv);
+        row.appendChild(rightDiv);
+        el.appendChild(row);
+    });
 }
 
 async function _executeSendBatch(payload, segmentLabel) {
@@ -4239,7 +4277,8 @@ async function sendNextBatch(title, body) {
 
     // Ask for batch size
     const batchN = parseInt(document.getElementById('notifFirstN')?.value || '50');
-    const label = `Lote: usuarios ${offset + 1}–${offset + batchN}${total > 0 ? ' de ' + total : ''}`;
+    const rangeEnd = total > 0 ? Math.min(offset + batchN, total) : offset + batchN;
+    const label = `Lote: usuarios ${offset + 1}–${rangeEnd}${total > 0 ? ' de ' + total : ''}`;
 
     if (!confirm(`¿Enviar al ${label}?`)) return;
 
