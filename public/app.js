@@ -38,6 +38,35 @@ function getArgentinaMidnight() {
     return midnight.getTime();
 }
 
+// Retorna la clave de día (YYYY-MM-DD en hora Argentina) de un timestamp
+function getArgentinaDayKey(date) {
+    const ar = getArgentinaDate(new Date(date));
+    return `${ar.getFullYear()}-${String(ar.getMonth() + 1).padStart(2, '0')}-${String(ar.getDate()).padStart(2, '0')}`;
+}
+
+// Retorna "Hoy", "Ayer" o fecha completa para el separador de chat
+function getChatDateLabel(date) {
+    const todayKey = getArgentinaDayKey(new Date());
+    const yesterdayKey = getArgentinaDayKey(new Date(Date.now() - 86400000));
+    const dayKey = getArgentinaDayKey(new Date(date));
+    if (dayKey === todayKey) return 'Hoy';
+    if (dayKey === yesterdayKey) return 'Ayer';
+    const ar = getArgentinaDate(new Date(date));
+    const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    return `${dias[ar.getDay()]} ${ar.getDate()} de ${meses[ar.getMonth()]}`;
+}
+
+// Crea el elemento DOM de un separador de fecha para el chat
+function createChatDateSeparator(label) {
+    const el = document.createElement('div');
+    el.className = 'chat-date-separator';
+    const span = document.createElement('span');
+    span.textContent = label;
+    el.appendChild(span);
+    return el;
+}
+
 // ========================================
 // INICIALIZACIÓN
 // ========================================
@@ -1394,8 +1423,19 @@ function renderMessages(messages) {
     const fragment = document.createDocumentFragment();
     processedMessageIds.clear();
 
+    let lastDayKey = null;
     messages.forEach(msg => {
         if (msg.id) processedMessageIds.add(msg.id);
+        // Insertar separador de fecha si cambió el día
+        if (msg.timestamp) {
+            const dayKey = getArgentinaDayKey(msg.timestamp);
+            if (dayKey !== lastDayKey) {
+                lastDayKey = dayKey;
+                const sep = createChatDateSeparator(getChatDateLabel(msg.timestamp));
+                sep.setAttribute('data-day', dayKey);
+                fragment.appendChild(sep);
+            }
+        }
         const wrapper = createMessageElement(msg);
         if (wrapper) fragment.appendChild(wrapper);
     });
@@ -1481,6 +1521,23 @@ function addMessageToChat(message) {
             existingByTemp.setAttribute('data-message-id', message.id);
             existingByTemp.removeAttribute('data-temp-id');
             return;
+        }
+    }
+
+    // Insertar separador de fecha si es un nuevo día respecto al último mensaje en el DOM
+    if (message.timestamp) {
+        const newDayKey = getArgentinaDayKey(message.timestamp);
+        const lastMsgEl = container.querySelector('[data-message-id]:last-of-type, [data-temp-id]:last-of-type');
+        let lastDayKeyInChat = null;
+        // Buscar el último separador de fecha para comparar
+        const separators = container.querySelectorAll('.chat-date-separator');
+        if (separators.length > 0) {
+            lastDayKeyInChat = separators[separators.length - 1].getAttribute('data-day');
+        }
+        if (lastDayKeyInChat !== newDayKey) {
+            const sep = createChatDateSeparator(getChatDateLabel(message.timestamp));
+            sep.setAttribute('data-day', newDayKey);
+            container.appendChild(sep);
         }
     }
 

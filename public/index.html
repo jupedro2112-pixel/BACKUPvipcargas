@@ -1028,8 +1028,36 @@
             background: #d4af37;
             transform: scale(1.1);
         }
+
+        /* Separador de fecha en chat */
+        .chat-date-separator {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 14px auto;
+            width: 100%;
+            gap: 8px;
+            color: #888;
+            font-size: 0.75rem;
+            user-select: none;
+        }
+        .chat-date-separator::before,
+        .chat-date-separator::after {
+            content: '';
+            flex: 1;
+            border-top: 1px solid rgba(212,175,55,0.2);
+        }
+        .chat-date-separator span {
+            background: rgba(212,175,55,0.1);
+            color: #c9a84c;
+            padding: 3px 12px;
+            border-radius: 99px;
+            font-size: 0.72rem;
+            font-weight: 500;
+            white-space: nowrap;
+            border: 1px solid rgba(212,175,55,0.2);
+        }
         
-        /* Chat Input - MÁS COMPACTO */
         .chat-input-container {
             padding: 8px 15px;
             padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
