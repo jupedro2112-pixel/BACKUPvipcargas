@@ -2788,7 +2788,9 @@ function getChatDateLabel(date) {
 function createChatDateSeparator(label) {
     const el = document.createElement('div');
     el.className = 'chat-date-separator';
-    el.innerHTML = `<span>${label}</span>`;
+    const span = document.createElement('span');
+    span.textContent = label;
+    el.appendChild(span);
     return el;
 }
 
