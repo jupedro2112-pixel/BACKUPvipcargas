@@ -656,7 +656,7 @@
                         <span class="stat-label">Total Usuarios</span>
                     </div>
                     <div class="stat-card" style="border-color:#00ff88">
-                        <span class="icon icon-mobile" style="color:#00ff88">📱</span>
+                        <span style="font-size:1.4rem">📱</span>
                         <span id="notifWithToken" class="stat-number" style="color:#00ff88">—</span>
                         <span class="stat-label">Con App instalada</span>
                     </div>
@@ -672,6 +672,17 @@
                     </div>
                 </div>
 
+                <!-- Estado del lote secuencial -->
+                <div id="notifBatchStatus" style="background:var(--bg-secondary,#1a1a2e);border-radius:12px;padding:1rem 1.5rem;margin-bottom:1.5rem;border:1px solid rgba(99,102,241,.3)">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+                        <div>
+                            <span style="color:#aaa;font-size:.85rem">📦 Lote secuencial: </span>
+                            <span id="notifBatchStatusText" style="font-weight:600">Sin envíos aún</span>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" onclick="resetNotifOffset()" title="Reiniciar desde el usuario 1">🔄 Reiniciar lote</button>
+                    </div>
+                </div>
+
                 <!-- Compositor de notificación -->
                 <div class="commands-section" style="background:var(--bg-secondary,#1a1a2e);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem">
                     <h3 style="margin-bottom:1rem;font-size:1rem;color:var(--text-secondary,#aaa)">✉️ Redactar notificación</h3>
@@ -684,27 +695,29 @@
                         <textarea id="notifBody" class="form-input" rows="3" placeholder="Ej: Ingresá ahora y reclamá tu bono de reactivación." maxlength="250" style="resize:vertical"></textarea>
                     </div>
 
-                    <div style="display:flex;gap:1rem;margin-top:1rem;flex-wrap:wrap;align-items:center">
+                    <div style="display:flex;gap:1rem;margin-top:1rem;flex-wrap:wrap;align-items:flex-end">
                         <!-- Segmento -->
                         <div>
                             <label class="form-label" style="display:block;margin-bottom:.3rem">Segmento</label>
-                            <select id="notifSegment" class="form-input" style="min-width:180px">
-                                <option value="all">Todos con app instalada</option>
-                                <option value="specific">Usuarios específicos</option>
+                            <select id="notifSegment" class="form-input" style="min-width:200px" onchange="onNotifSegmentChange()">
+                                <option value="all">🌐 Todos con app instalada</option>
+                                <option value="active">✅ Activos (login &lt; 7 días)</option>
+                                <option value="inactive">💤 Inactivos (&gt;= 7 días sin login)</option>
+                                <option value="with_balance">💰 Con saldo &gt; 0</option>
+                                <option value="first_n">🔢 Primeros N usuarios</option>
+                                <option value="next_batch">⏭️ Siguiente lote</option>
+                                <option value="specific">👤 Usuarios específicos</option>
                             </select>
                         </div>
-                        <!-- Tamaño de lote -->
-                        <div>
-                            <label class="form-label" style="display:block;margin-bottom:.3rem">Tamaño de lote</label>
-                            <select id="notifBatchSize" class="form-input" style="min-width:120px">
-                                <option value="50">50</option>
-                                <option value="100" selected>100</option>
-                                <option value="200">200</option>
-                            </select>
+                        <!-- Cantidad N (solo para "Primeros N") -->
+                        <div id="notifFirstNDiv" style="display:none">
+                            <label class="form-label" style="display:block;margin-bottom:.3rem">Cantidad N</label>
+                            <input type="number" id="notifFirstN" class="form-input" style="min-width:100px" value="50" min="1" max="10000" placeholder="50" />
                         </div>
-                        <!-- Botón enviar -->
-                        <div style="align-self:flex-end">
+                        <!-- Botones de acción -->
+                        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
                             <button id="notifSendBtn" class="btn btn-primary" onclick="sendBatchNotification()">🚀 Enviar notificación</button>
+                            <button id="notifSendAllBtn" class="btn btn-danger" onclick="sendToAll()" title="Enviar a TODOS los usuarios con app instalada sin límite">📢 Enviar a TODOS</button>
                         </div>
                     </div>
 
@@ -713,12 +726,31 @@
                         <label class="form-label">Usernames (uno por línea o separados por coma)</label>
                         <textarea id="notifUsernames" class="form-input" rows="4" placeholder="usuario1&#10;usuario2&#10;usuario3"></textarea>
                     </div>
+
+                    <!-- Barra de progreso -->
+                    <div id="notifProgress" style="display:none;margin-top:1rem">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+                            <span style="font-size:.85rem;color:#aaa" id="notifProgressText">Enviando...</span>
+                            <span style="font-size:.85rem;font-weight:700;color:#00ff88" id="notifProgressPct">0%</span>
+                        </div>
+                        <div style="background:rgba(255,255,255,.1);border-radius:99px;height:8px;overflow:hidden">
+                            <div id="notifProgressBar" style="height:100%;background:linear-gradient(90deg,#6366f1,#00ff88);border-radius:99px;width:0%;transition:width .3s"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Resultado del último envío -->
                 <div id="notifResult" style="display:none;background:var(--bg-secondary,#1a1a2e);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem">
                     <h3 style="margin-bottom:1rem;font-size:1rem;color:var(--text-secondary,#aaa)">📋 Resultado del envío</h3>
                     <div id="notifResultContent"></div>
+                </div>
+
+                <!-- Historial de envíos -->
+                <div id="notifHistoryPanel" style="background:var(--bg-secondary,#1a1a2e);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem">
+                    <h3 style="font-size:1rem;color:var(--text-secondary,#aaa);margin-bottom:.75rem">🕒 Historial de envíos</h3>
+                    <div id="notifHistoryList" style="font-size:.85rem">
+                        <p style="color:#888;text-align:center">Sin historial aún</p>
+                    </div>
                 </div>
 
                 <!-- Lista de usuarios con estado de token -->
@@ -730,6 +762,9 @@
                                 <option value="all">Todos</option>
                                 <option value="with_token">Con app instalada</option>
                                 <option value="without_token">Sin app / sin token</option>
+                                <option value="active">Activos (&lt; 7 días)</option>
+                                <option value="inactive">Inactivos</option>
+                                <option value="with_balance">Con saldo &gt; 0</option>
                             </select>
                             <button class="btn btn-danger btn-sm" onclick="cleanInvalidTokens()" title="Verificar y eliminar tokens inválidos">🧹 Limpiar tokens inválidos</button>
                         </div>

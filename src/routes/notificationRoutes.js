@@ -659,16 +659,23 @@ router.get('/users-status', requireAdmin, async (req, res) => {
     const { page = 1, limit = 50, filter = 'all' } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     let query = {};
     if (filter === 'with_token') {
       query = { fcmToken: { $exists: true, $ne: null } };
     } else if (filter === 'without_token') {
       query = { $or: [{ fcmToken: { $exists: false } }, { fcmToken: null }] };
+    } else if (filter === 'active') {
+      query = { fcmToken: { $exists: true, $ne: null }, lastLogin: { $gte: sevenDaysAgo } };
+    } else if (filter === 'inactive') {
+      query = { fcmToken: { $exists: true, $ne: null }, $or: [{ lastLogin: { $lt: sevenDaysAgo } }, { lastLogin: { $exists: false } }] };
+    } else if (filter === 'with_balance') {
+      query = { fcmToken: { $exists: true, $ne: null }, balance: { $gt: 0 } };
     }
 
     const total = await User.countDocuments(query);
     const users = await User.find(query)
-      .select('username fcmToken fcmTokenUpdatedAt lastLogin createdAt')
+      .select('username fcmToken fcmTokenUpdatedAt lastLogin createdAt balance')
       .sort({ fcmTokenUpdatedAt: -1, lastLogin: -1 })
       .skip(skip)
       .limit(parseInt(limit))
@@ -707,26 +714,40 @@ router.get('/users-status', requireAdmin, async (req, res) => {
 
 // ============================================
 // ENVIAR NOTIFICACIÓN POR LOTES CONFIGURABLES
-// Permite enviar a todos o a usuarios con token, en lotes de 50/100/200
+// Permite enviar a todos o a usuarios con token, en lotes de hasta 500
 // Limpia automáticamente tokens inválidos detectados en el envío
+// Soporta segmentos: all, active, inactive, with_balance, specific
 // ============================================
 router.post('/send-batch', requireAdmin, async (req, res) => {
   try {
-    const { title, body, data, batchSize = 100, usernames } = req.body;
+    const { title, body, data, batchSize = 500, usernames, segment = 'all', offset = 0, count } = req.body;
 
     if (!title || !body) {
       return res.status(400).json({ error: 'Título y cuerpo son requeridos' });
     }
 
-    const validBatchSizes = [50, 100, 200];
-    const chunkSize = validBatchSizes.includes(parseInt(batchSize)) ? parseInt(batchSize) : 100;
+    const chunkSize = Math.min(Math.max(parseInt(batchSize) || 500, 1), 500);
 
-    // Build query: if specific usernames were provided, send only to those
-    const query = usernames && usernames.length > 0
-      ? { username: { $in: usernames }, fcmToken: { $exists: true, $ne: null } }
-      : { fcmToken: { $exists: true, $ne: null } };
+    // Construir query según segmento
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    let query;
+    if (usernames && usernames.length > 0) {
+      query = { username: { $in: usernames }, fcmToken: { $exists: true, $ne: null } };
+    } else if (segment === 'active') {
+      query = { fcmToken: { $exists: true, $ne: null }, lastLogin: { $gte: sevenDaysAgo } };
+    } else if (segment === 'inactive') {
+      query = { fcmToken: { $exists: true, $ne: null }, $or: [{ lastLogin: { $lt: sevenDaysAgo } }, { lastLogin: { $exists: false } }] };
+    } else if (segment === 'with_balance') {
+      query = { fcmToken: { $exists: true, $ne: null }, balance: { $gt: 0 } };
+    } else {
+      query = { fcmToken: { $exists: true, $ne: null } };
+    }
 
-    const allUsers = await User.find(query).select('username fcmToken').lean();
+    const totalInSegment = await User.countDocuments(query);
+    let usersQuery = User.find(query).select('username fcmToken').sort({ createdAt: 1 });
+    if (offset > 0) usersQuery = usersQuery.skip(parseInt(offset));
+    if (count && parseInt(count) > 0) usersQuery = usersQuery.limit(parseInt(count));
+    const allUsers = await usersQuery.lean();
 
     if (allUsers.length === 0) {
       return res.json({
@@ -814,6 +835,9 @@ router.post('/send-batch', requireAdmin, async (req, res) => {
     res.json({
       success: true,
       totalUsers: allUsers.length,
+      totalInSegment,
+      offset: parseInt(offset) || 0,
+      nextOffset: (parseInt(offset) || 0) + allUsers.length,
       successCount: totalSuccess,
       failureCount: totalFailure,
       cleanedTokens: totalCleaned,

@@ -1203,10 +1203,21 @@ function renderMessages(messages) {
     // Usar DocumentFragment para mínimo reflow DOM
     const fragment = document.createDocumentFragment();
     processedMessageIds.clear();
-    
+
+    let lastDayKey = null;
     messages.forEach(msg => {
         if (msg.id) {
             processedMessageIds.add(msg.id);
+        }
+        // Insertar separador de fecha si cambió el día
+        if (msg.timestamp) {
+            const dayKey = getArgentinaDayKey(msg.timestamp);
+            if (dayKey !== lastDayKey) {
+                lastDayKey = dayKey;
+                const sep = createChatDateSeparator(getChatDateLabel(msg.timestamp));
+                sep.setAttribute('data-day', dayKey);
+                fragment.appendChild(sep);
+            }
         }
         const msgDiv = createMessageElement(msg);
         fragment.appendChild(msgDiv);
@@ -1292,6 +1303,24 @@ function addMessageToChat(message, isOutgoing = false) {
             processedMessageIds.delete(iterator.next().value);
         }
     }
+
+    // Remove empty state if exists
+    const emptyState = elements.chatMessages.querySelector('.empty-state');
+    if (emptyState) {
+        emptyState.remove();
+    }
+
+    // Insertar separador de fecha si es un nuevo día respecto al último separador en el DOM
+    if (message.timestamp) {
+        const newDayKey = getArgentinaDayKey(message.timestamp);
+        const separators = elements.chatMessages.querySelectorAll('.chat-date-separator');
+        const lastDayKeyInChat = separators.length > 0 ? separators[separators.length - 1].getAttribute('data-day') : null;
+        if (lastDayKeyInChat !== newDayKey) {
+            const sep = createChatDateSeparator(getChatDateLabel(message.timestamp));
+            sep.setAttribute('data-day', newDayKey);
+            elements.chatMessages.appendChild(sep);
+        }
+    }
     
     const msgDiv = document.createElement('div');
     msgDiv.className = `message ${isOutgoing ? 'outgoing' : 'incoming'}`;
@@ -1304,12 +1333,6 @@ function addMessageToChat(message, isOutgoing = false) {
         <div class="message-content">${formatMessageContent(message)}</div>
         <div class="message-time">${formatDateTime(message.timestamp || new Date())}</div>
     `;
-    
-    // Remove empty state if exists
-    const emptyState = elements.chatMessages.querySelector('.empty-state');
-    if (emptyState) {
-        emptyState.remove();
-    }
     
     elements.chatMessages.appendChild(msgDiv);
     
@@ -2742,6 +2765,33 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Retorna la clave de día (YYYY-MM-DD en hora Argentina) de un timestamp
+function getArgentinaDayKey(date) {
+    const ar = new Date(new Date(date).toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    return `${ar.getFullYear()}-${String(ar.getMonth() + 1).padStart(2, '0')}-${String(ar.getDate()).padStart(2, '0')}`;
+}
+
+// Retorna "Hoy", "Ayer" o fecha completa para el separador de chat
+function getChatDateLabel(date) {
+    const todayKey = getArgentinaDayKey(new Date());
+    const yesterdayKey = getArgentinaDayKey(new Date(Date.now() - 86400000));
+    const dayKey = getArgentinaDayKey(new Date(date));
+    if (dayKey === todayKey) return 'Hoy';
+    if (dayKey === yesterdayKey) return 'Ayer';
+    const ar = new Date(new Date(date).toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+    const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    return `${dias[ar.getDay()]} ${ar.getDate()} de ${meses[ar.getMonth()]}`;
+}
+
+// Crea el elemento DOM de un separador de fecha para el chat
+function createChatDateSeparator(label) {
+    const el = document.createElement('div');
+    el.className = 'chat-date-separator';
+    el.innerHTML = `<span>${label}</span>`;
+    return el;
+}
+
 function formatMoney(amount) {
     if (amount === undefined || amount === null) return '$0';
     return '$' + parseFloat(amount).toLocaleString('es-AR', {
@@ -3837,6 +3887,8 @@ let notifCurrentPage = 1;
 
 async function loadNotificationsPanel() {
     const filter = document.getElementById('notifUserFilter')?.value || 'all';
+    updateBatchStatusDisplay();
+    renderNotifHistory();
     await Promise.all([
         loadNotifStats(),
         loadNotifUsers(1, filter)
@@ -3931,33 +3983,116 @@ async function loadNotifUsers(page = 1, filter = 'all') {
     }
 }
 
-async function sendBatchNotification() {
-    const title = document.getElementById('notifTitle')?.value?.trim();
-    const body = document.getElementById('notifBody')?.value?.trim();
-    const segment = document.getElementById('notifSegment')?.value || 'all';
-    const batchSize = parseInt(document.getElementById('notifBatchSize')?.value || '100');
+// Mostrar/ocultar campos según segmento seleccionado
+function onNotifSegmentChange() {
+    const segment = document.getElementById('notifSegment')?.value;
+    const specificDiv = document.getElementById('notifSpecificUsers');
+    const firstNDiv = document.getElementById('notifFirstNDiv');
+    if (specificDiv) specificDiv.style.display = segment === 'specific' ? 'block' : 'none';
+    if (firstNDiv) firstNDiv.style.display = segment === 'first_n' ? 'block' : 'none';
+    // Actualizar estado del lote secuencial
+    updateBatchStatusDisplay();
+}
 
-    if (!title || !body) {
-        showToast('❌ El título y el mensaje son obligatorios', 'error');
+function updateBatchStatusDisplay() {
+    const el = document.getElementById('notifBatchStatusText');
+    if (!el) return;
+    const offset = parseInt(localStorage.getItem('notifBatchOffset') || '0');
+    const total = parseInt(localStorage.getItem('notifBatchTotal') || '0');
+    if (offset === 0) {
+        el.textContent = 'Sin envíos aún — empezará desde el usuario 1';
+        el.style.color = '#aaa';
+    } else if (total > 0 && offset >= total) {
+        el.textContent = `✅ Ya se envió a todos (${total} usuarios). Reiniciá para volver a empezar.`;
+        el.style.color = '#00ff88';
+    } else {
+        const from = offset + 1;
+        const totalTxt = total > 0 ? ` de ${total} totales` : '';
+        el.textContent = `Próximo lote: desde usuario ${from}${totalTxt}`;
+        el.style.color = '#fbbf24';
+    }
+}
+
+function resetNotifOffset() {
+    localStorage.removeItem('notifBatchOffset');
+    localStorage.removeItem('notifBatchTotal');
+    updateBatchStatusDisplay();
+    showToast('🔄 Lote reiniciado — el próximo envío empezará desde el usuario 1', 'success');
+}
+
+function addNotifHistoryEntry(data, segmentLabel) {
+    const historyKey = 'notifHistory';
+    let history = [];
+    try { history = JSON.parse(localStorage.getItem(historyKey) || '[]'); } catch (e) { history = []; }
+    const entry = {
+        date: new Date().toISOString(),
+        segment: segmentLabel,
+        totalSent: data.successCount,
+        totalFailed: data.failureCount,
+        totalUsers: data.totalUsers,
+        successRate: data.totalUsers > 0 ? Math.round((data.successCount / data.totalUsers) * 100) : 0
+    };
+    history.unshift(entry);
+    if (history.length > 20) history = history.slice(0, 20);
+    localStorage.setItem(historyKey, JSON.stringify(history));
+    renderNotifHistory();
+}
+
+function renderNotifHistory() {
+    const el = document.getElementById('notifHistoryList');
+    if (!el) return;
+    let history = [];
+    try { history = JSON.parse(localStorage.getItem('notifHistory') || '[]'); } catch (e) { history = []; }
+    if (history.length === 0) {
+        el.innerHTML = '<p style="color:#888;text-align:center">Sin historial aún</p>';
         return;
     }
+    el.innerHTML = history.map(h => {
+        const d = new Date(h.date);
+        const dateStr = d.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', day: '2-digit', month: '2-digit', year: 'numeric' });
+        const timeStr = d.toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit' });
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem .25rem;border-bottom:1px solid rgba(255,255,255,.06)">
+            <div>
+                <span style="color:#aaa;font-size:.8rem">${dateStr} ${timeStr}</span>
+                <span style="margin-left:.5rem;padding:.15rem .5rem;border-radius:99px;background:rgba(99,102,241,.2);color:#a5b4fc;font-size:.75rem">${escapeHtml(h.segment)}</span>
+            </div>
+            <div style="text-align:right">
+                <span style="color:#00ff88;font-weight:700">${h.totalSent}</span>
+                <span style="color:#aaa;font-size:.8rem"> enviados</span>
+                ${h.totalFailed > 0 ? `<span style="color:#f87171;margin-left:.4rem">${h.totalFailed} fallidos</span>` : ''}
+                <span style="color:#6366f1;margin-left:.4rem;font-size:.8rem">${h.successRate}%</span>
+            </div>
+        </div>`;
+    }).join('');
+}
 
-    let usernames = null;
-    if (segment === 'specific') {
-        const raw = document.getElementById('notifUsernames')?.value || '';
-        usernames = raw.split(/[\n,]+/).map(u => u.trim()).filter(Boolean);
-        if (usernames.length === 0) {
-            showToast('❌ Ingresá al menos un username en "Usuarios específicos"', 'error');
-            return;
-        }
-    }
-
+async function _executeSendBatch(payload, segmentLabel) {
     const sendBtn = document.getElementById('notifSendBtn');
-    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '⏳ Enviando...'; }
-
+    const sendAllBtn = document.getElementById('notifSendAllBtn');
+    const progressDiv = document.getElementById('notifProgress');
+    const progressText = document.getElementById('notifProgressText');
+    const progressBar = document.getElementById('notifProgressBar');
+    const progressPct = document.getElementById('notifProgressPct');
     const resultEl = document.getElementById('notifResult');
     const resultContent = document.getElementById('notifResultContent');
+
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '⏳ Enviando...'; }
+    if (sendAllBtn) { sendAllBtn.disabled = true; }
     if (resultEl) resultEl.style.display = 'none';
+    if (progressDiv) progressDiv.style.display = 'block';
+    if (progressText) progressText.textContent = 'Enviando...';
+    if (progressBar) progressBar.style.width = '0%';
+    if (progressPct) progressPct.textContent = '0%';
+
+    // Simulate progress during send (indeterminate)
+    let fakeProgress = 0;
+    const progressInterval = setInterval(() => {
+        if (fakeProgress < 85) {
+            fakeProgress += Math.random() * 8;
+            if (progressBar) progressBar.style.width = Math.min(fakeProgress, 85) + '%';
+            if (progressPct) progressPct.textContent = Math.round(Math.min(fakeProgress, 85)) + '%';
+        }
+    }, 400);
 
     try {
         const res = await fetch(`${API_URL}/api/notifications/send-batch`, {
@@ -3966,22 +4101,32 @@ async function sendBatchNotification() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${currentToken}`
             },
-            body: JSON.stringify({ title, body, batchSize, usernames })
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
+
+        clearInterval(progressInterval);
+        if (progressBar) progressBar.style.width = '100%';
+        if (progressPct) progressPct.textContent = '100%';
+        if (progressText) progressText.textContent = data.success
+            ? `✅ Completado: ${data.successCount} exitosos, ${data.failureCount} fallidos`
+            : `❌ Error: ${data.error || 'Error desconocido'}`;
 
         if (resultEl) resultEl.style.display = 'block';
         if (resultContent) {
             if (data.success) {
                 const pct = data.totalUsers > 0 ? Math.round((data.successCount / data.totalUsers) * 100) : 0;
+                const offsetInfo = data.nextOffset !== undefined
+                    ? `<div style="margin-bottom:.75rem;padding:.5rem .75rem;border-radius:8px;background:rgba(99,102,241,.15);font-size:.85rem;color:#a5b4fc">📦 Usuarios enviados: ${data.offset + 1}–${data.nextOffset} de ${data.totalInSegment || data.totalUsers} totales</div>`
+                    : '';
                 resultContent.innerHTML = `
+                    ${offsetInfo}
                     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem;margin-bottom:1rem">
                         <div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:#00ff88">${data.successCount}</div><div style="color:#aaa;font-size:.8rem">Enviados</div></div>
                         <div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:#f87171">${data.failureCount}</div><div style="color:#aaa;font-size:.8rem">Fallidos</div></div>
                         <div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:#fbbf24">${data.cleanedTokens}</div><div style="color:#aaa;font-size:.8rem">Tokens limpiados</div></div>
                         <div style="text-align:center"><div style="font-size:1.5rem;font-weight:700;color:#6366f1">${data.totalUsers}</div><div style="color:#aaa;font-size:.8rem">Destinatarios</div></div>
                         <div style="text-align:center"><div style="font-size:1.5rem;font-weight:700">${pct}%</div><div style="color:#aaa;font-size:.8rem">Tasa de éxito</div></div>
-                        <div style="text-align:center"><div style="font-size:1.5rem;font-weight:700">${data.batches}</div><div style="color:#aaa;font-size:.8rem">Lotes (${data.batchSize} c/u)</div></div>
                     </div>
                     ${data.failedTokens && data.failedTokens.length > 0 ? `
                     <details style="margin-top:.5rem">
@@ -3992,18 +4137,119 @@ async function sendBatchNotification() {
                     </details>` : ''}
                 `;
                 showToast(`✅ Notificación enviada a ${data.successCount} usuarios`, 'success');
-                // Reload stats and token list after sending (tokens may have been cleaned)
+                addNotifHistoryEntry(data, segmentLabel);
                 loadNotificationsPanel();
             } else {
                 resultContent.innerHTML = `<p style="color:#f87171">❌ Error: ${escapeHtml(data.error || 'Error desconocido')}</p>`;
                 showToast('❌ Error al enviar notificaciones', 'error');
             }
         }
+        return data;
     } catch (e) {
+        clearInterval(progressInterval);
+        if (progressDiv) progressDiv.style.display = 'none';
         showToast('❌ Error de conexión al enviar notificaciones', 'error');
         console.error('[Notif Panel] Error enviando:', e);
+        return null;
     } finally {
         if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '🚀 Enviar notificación'; }
+        if (sendAllBtn) { sendAllBtn.disabled = false; }
+    }
+}
+
+async function sendBatchNotification() {
+    const title = document.getElementById('notifTitle')?.value?.trim();
+    const body = document.getElementById('notifBody')?.value?.trim();
+    const segment = document.getElementById('notifSegment')?.value || 'all';
+
+    if (!title || !body) {
+        showToast('❌ El título y el mensaje son obligatorios', 'error');
+        return;
+    }
+
+    const segmentLabels = {
+        all: 'Todos', active: 'Activos', inactive: 'Inactivos',
+        with_balance: 'Con saldo', first_n: 'Primeros N', next_batch: 'Siguiente lote', specific: 'Específicos'
+    };
+
+    if (segment === 'first_n') {
+        await sendFirstN(title, body);
+        return;
+    }
+
+    if (segment === 'next_batch') {
+        await sendNextBatch(title, body);
+        return;
+    }
+
+    let payload = { title, body, batchSize: 500, segment };
+
+    if (segment === 'specific') {
+        const raw = document.getElementById('notifUsernames')?.value || '';
+        const usernames = raw.split(/[\n,]+/).map(u => u.trim()).filter(Boolean);
+        if (usernames.length === 0) {
+            showToast('❌ Ingresá al menos un username', 'error');
+            return;
+        }
+        payload.usernames = usernames;
+    }
+
+    await _executeSendBatch(payload, segmentLabels[segment] || segment);
+}
+
+async function sendToAll() {
+    const title = document.getElementById('notifTitle')?.value?.trim();
+    const body = document.getElementById('notifBody')?.value?.trim();
+
+    if (!title || !body) {
+        showToast('❌ El título y el mensaje son obligatorios', 'error');
+        return;
+    }
+
+    if (!confirm('¿Enviar esta notificación a TODOS los usuarios con app instalada? Esta acción no se puede deshacer.')) return;
+
+    const payload = { title, body, batchSize: 500, segment: 'all' };
+    await _executeSendBatch(payload, 'Todos (sin límite)');
+}
+
+async function sendFirstN(title, body) {
+    const n = parseInt(document.getElementById('notifFirstN')?.value || '50');
+    if (!n || n < 1) {
+        showToast('❌ Ingresá un número válido mayor a 0', 'error');
+        return;
+    }
+    const payload = { title, body, batchSize: 500, segment: 'all', offset: 0, count: n };
+    const result = await _executeSendBatch(payload, `Primeros ${n}`);
+    if (result && result.success) {
+        // Save offset for next time
+        localStorage.setItem('notifBatchOffset', String(result.nextOffset || n));
+        localStorage.setItem('notifBatchTotal', String(result.totalInSegment || 0));
+        updateBatchStatusDisplay();
+    }
+}
+
+async function sendNextBatch(title, body) {
+    const offset = parseInt(localStorage.getItem('notifBatchOffset') || '0');
+    const total = parseInt(localStorage.getItem('notifBatchTotal') || '0');
+
+    if (total > 0 && offset >= total) {
+        showToast('✅ Ya se envió a todos los usuarios. Reiniciá el lote para volver a empezar.', 'success');
+        return;
+    }
+
+    // Ask for batch size
+    const batchN = parseInt(document.getElementById('notifFirstN')?.value || '50');
+    const label = `Lote: usuarios ${offset + 1}–${offset + batchN}${total > 0 ? ' de ' + total : ''}`;
+
+    if (!confirm(`¿Enviar al ${label}?`)) return;
+
+    const payload = { title, body, batchSize: 500, segment: 'all', offset, count: batchN };
+    const result = await _executeSendBatch(payload, label);
+    if (result && result.success) {
+        const newOffset = result.nextOffset || (offset + batchN);
+        localStorage.setItem('notifBatchOffset', String(newOffset));
+        if (result.totalInSegment) localStorage.setItem('notifBatchTotal', String(result.totalInSegment));
+        updateBatchStatusDisplay();
     }
 }
 
@@ -4041,15 +4287,19 @@ async function cleanInvalidTokens() {
 document.addEventListener('DOMContentLoaded', () => {
     const segmentSelect = document.getElementById('notifSegment');
     if (segmentSelect) {
-        segmentSelect.addEventListener('change', () => {
-            const specificDiv = document.getElementById('notifSpecificUsers');
-            if (specificDiv) specificDiv.style.display = segmentSelect.value === 'specific' ? 'block' : 'none';
-        });
+        segmentSelect.addEventListener('change', onNotifSegmentChange);
     }
+    updateBatchStatusDisplay();
+    renderNotifHistory();
 });
 
 // Exponer funciones del panel de notificaciones al scope global (usadas por onclick)
 window.loadNotificationsPanel = loadNotificationsPanel;
 window.loadNotifUsers = loadNotifUsers;
 window.sendBatchNotification = sendBatchNotification;
+window.sendToAll = sendToAll;
+window.sendFirstN = sendFirstN;
+window.sendNextBatch = sendNextBatch;
+window.resetNotifOffset = resetNotifOffset;
+window.onNotifSegmentChange = onNotifSegmentChange;
 window.cleanInvalidTokens = cleanInvalidTokens;
